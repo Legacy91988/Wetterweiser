@@ -4,7 +4,7 @@
 
 
 
-
+Wetterweiser ist ein Python-Tool zur Analyse, Visualisierung und Verwaltung von Wetterdaten – mit CSV-Support, Plots und optionalem Live-Import von OpenWeatherMap.“
 
 
 
@@ -20,13 +20,9 @@
 
 
 
-
-
 * **Datenvisualisierung**
 
    Darstellung von Temperatur-, Niederschlags- und Sonnenstundenverläufen über verschiedene Zeiträume.
-
-
 
 
 
@@ -197,7 +193,7 @@
 
 
 
-## **UML-Übersicht**
+## **Projektstruktur:**
 
 
 
@@ -205,205 +201,52 @@
 
 
 
-**+------------------+**
+**WetterProjekt/**
 
+**├── README.md                  |   Projektdokumentation**
 
+**├── wetter\_messung.py          |   Klasse `WetterMessung`**
 
-**|  WetterMessung   |**
+**├── wetter\_daten.py            |   Klasse `WetterDaten`**
 
+**├── wetter\_plots.py            |   Klasse `WetterPlots`**
 
+**├── wetter\_analyse.py          |   Klasse `WetterAnalyse`**
 
-**+------------------+**
+**├── data/                      |   CSV-Dateien mit Messungen**
 
+**│   └── beispiel.csv**
 
+**├── plots/                     |   generierte Diagramme**
 
-**| - datum          |**
+**│   └── temperatur.png**
 
+**└── tests/                     |   Unittests**
 
+&nbsp;   \*\*└── test\\\_wetter\\\_daten.py\*\*
 
-**| - temperatur     |**
 
 
 
-**| - niederschlag   |**
 
 
 
-**| - sonnenstunden  |**
 
 
 
-**+------------------+**
 
 
 
-**| + als\\\_dict()     |**
 
+## **Lizenz:**
 
 
-**+------------------+**
 
-
-
-
-
-
-
-**\&nbsp;          1**
-
-
-
-**\&nbsp;          |**
-
-
-
-**\&nbsp;          |**
-
-
-
-**\&nbsp;          \\\***
-
-
-
-**+------------------+**
-
-
-
-**|   WetterDaten    |**
-
-
-
-**+------------------+**
-
-
-
-**| - messungen: list|**
-
-
-
-**+------------------+**
-
-
-
-**| + hinzufuegen(m:WetterMessung)        |**
-
-
-
-**| + laufender\\\_niederschlag\\\_heute()      |**
-
-
-
-**| + durchschnittstemperatur()           |**
-
-
-
-**| + gesamtniederschlag()                |**
-
-
-
-**| + gesamte\\\_sonnenstunden()             |**
-
-
-
-**| + als\\\_dataframe()                     |**
-
-
-
-**| + import\\\_csv(datei)                   |**
-
-
-
-**| + export\\\_csv(datei)                   |**
-
-
-
-**| + loesche\\\_messung(datum\\\_zeit)        |**
-
-
-
-**+------------------+**
-
-
-
-
-
-
-
-**+------------------+**
-
-
-
-**|   WetterPlots    |**
-
-
-
-**+------------------+**
-
-
-
-**| - df: DataFrame  |**
-
-
-
-**+------------------+**
-
-
-
-**| + temperaturverlauf(pfad)             |**
-
-
-
-**| + niederschlagsverlauf(pfad)          |**
-
-
-
-**+------------------+**
-
-
-
-
-
-
-
-**+------------------+**
-
-
-
-**|  WetterAnalyse   |**
-
-
-
-**+------------------+**
-
-
-
-**| - df: DataFrame  |**
-
-
-
-**+------------------+**
-
-
-
-**| + jahresstatistik()                    |**
-
-
-
-**+------------------+**
-
-
-
-
-
-
-
-
+* MIT-Lizenz
 
 
 
 
 
 **Autor: Legacy**
-
-
 
