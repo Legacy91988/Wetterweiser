@@ -223,7 +223,8 @@ Wetterweiser ist ein Python-Tool zur Analyse, Visualisierung und Verwaltung von 
 
 **└── tests/                     |   Unittests**
 
-&nbsp;   \*\*└── test\\\_wetter\\\_daten.py\*\*
+    \*\*└── test\\\_wetter\\\_daten.py\*\*
+
 
 
 
