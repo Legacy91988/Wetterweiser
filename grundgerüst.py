@@ -1,19 +1,27 @@
 import streamlit as st
 import pandas as pd
 import uuid
-import datetime
+import json
+from datetime import datetime
+from github import Github
+
+# --------------------------
+# Einstellungen für GitHub
+# --------------------------
+GITHUB_REPO = "Legacy91988/Wetterweiser"   # <--- hier GitHub Repo eintragen
+BRANCH = "main"                           # <--- hier Branch eintragen
+DATEI_NAME = "wetterdaten.json"           # JSON-Datei für die Wetterdaten
 
 # --------------------------
 # Datenklassen
 # --------------------------
 class WetterMessung:
-    def __init__(self, datum, temperatur, niederschlag, sonnenstunden=None,
-                 id=None, standort="Musterstadt"):
+    def __init__(self, datum, temperatur, niederschlag, sonnenstunden=6.0, id=None, standort="Musterstadt"):
         self.id = id or str(uuid.uuid4())
         self.datum = pd.to_datetime(datum)
         self.temperatur = temperatur
         self.niederschlag = niederschlag
-        self.sonnenstunden = sonnenstunden if sonnenstunden is not None else 6.0
+        self.sonnenstunden = sonnenstunden
         self.standort = standort
 
     def als_dict(self):
@@ -26,9 +34,6 @@ class WetterMessung:
             "Standort": self.standort
         }
 
-# --------------------------
-# Basisklasse
-# --------------------------
 class WetterDaten:
     def __init__(self):
         self.messungen = []
@@ -43,66 +48,74 @@ class WetterDaten:
             df = df.sort_values('Datum')
         return df
 
-    def loesche_messungen(self, ids):
-        self.messungen = [m for m in self.messungen if m.id not in ids]
+    # --------------------------
+    # JSON lokal oder GitHub
+    # --------------------------
+    def laden(self, github=None):
+        if github:
+            try:
+                repo = github.get_repo(GITHUB_REPO)
+                content = repo.get_contents(DATEI_NAME, ref=BRANCH)
+                data = json.loads(content.decoded_content.decode())
+            except:
+                data = []
+        else:
+            try:
+                with open(DATEI_NAME, "r") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                data = []
 
-    def laden_csv(self, csv_url):
-        df = pd.read_csv(csv_url)
-        for _, row in df.iterrows():
+        for row in data:
             self.hinzufuegen(WetterMessung(
-                datum=row["Datum"],
-                temperatur=row["Temperatur"],
-                niederschlag=row["Niederschlag"],
-                sonnenstunden=row.get("Sonnenstunden", 6.0),
+                row["Datum"], row["Temperatur"], row["Niederschlag"],
+                row.get("Sonnenstunden",6.0),
                 id=row.get("ID"),
-                standort=row.get("Standort", "Musterstadt")
+                standort=row.get("Standort","Musterstadt")
             ))
 
-# --------------------------
-# Erweiterung: WetterAnalyse
-# --------------------------
-class WetterAnalyse(WetterDaten):
-    def extremwerte(self, ort_filter="Alle"):
-        df = self.als_dataframe()
-        if df.empty:
-            return None, None
-        if ort_filter != "Alle":
-            df = df[df['Standort'] == ort_filter]
-        if df.empty:
-            return None, None
-        max_idx = df['Temperatur'].idxmax()
-        min_idx = df['Temperatur'].idxmin()
-        return df.loc[max_idx], df.loc[min_idx]
-
-    def jahresstatistik(self, ort_filter="Alle"):
-        df = self.als_dataframe()
-        if ort_filter != "Alle":
-            df = df[df['Standort'] == ort_filter]
-        if df.empty:
-            return None
-        return {
-            "durchschnittstemperatur": df['Temperatur'].mean(),
-            "gesamtniederschlag": df['Niederschlag'].sum(),
-            "gesamte_sonnenstunden": df['Sonnenstunden'].sum()
-        }
+    def speichern(self, github=None):
+        df = [m.als_dict() for m in self.messungen]
+        if github:
+            repo = github.get_repo(GITHUB_REPO)
+            try:
+                content = repo.get_contents(DATEI_NAME, ref=BRANCH)
+                repo.update_file(content.path, "Update Wetterdaten", json.dumps(df, indent=2), content.sha, branch=BRANCH)
+            except:
+                repo.create_file(DATEI_NAME, "Create Wetterdaten", json.dumps(df, indent=2), branch=BRANCH)
+        else:
+            with open(DATEI_NAME, "w") as f:
+                json.dump(df, f, indent=2)
 
 # --------------------------
 # Haupt-App
 # --------------------------
 def main():
-    st.title("🌤️ Wetterweiser - Minimal (CSV-Version)")
+    st.title("🌤️ Wetterweiser - Minimal mit GitHub")
 
-    # WetterAnalyse Instanz
-    wd = WetterAnalyse()
+    # GitHub Verbindung (falls Token vorhanden)
+    github = None
+    if "github_token" in st.secrets.get("github", {}):
+        github = Github(st.secrets["github"]["github_token"])
 
-    # Google Sheet CSV-Link
-    csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIFjrGtLkaGP_daFfwgjHkb44_YgimPNhfDcrmvJiua1-h7wLfEaCvkaFgIgWbbcCFC7TKtCGvawGl/pub?gid=0&single=true&output=csv"
+    wd = WetterDaten()
+    wd.laden(github)
 
-    # Daten laden
-    wd.laden_csv(csv_url)
-
-    # DataFrame anzeigen
+    # Zeige Daten
     st.dataframe(wd.als_dataframe())
+
+    # Formular für neue Messungen
+    with st.form("neue_messung"):
+        datum = st.date_input("Datum", value=pd.Timestamp.today())
+        temperatur = st.number_input("Temperatur", value=20.0)
+        niederschlag = st.number_input("Niederschlag", value=0.0)
+        sonnenstunden = st.number_input("Sonnenstunden", value=6.0)
+        standort = st.text_input("Standort", value="Musterstadt")
+        submitted = st.form_submit_button("Hinzufügen")
+        if submitted:
+            wd.hinzufuegen(WetterMessung(datum, temperatur, niederschlag, sonnenstunden, standort=standort))
+            wd.speichern(github)
+            st.success("Messung gespeichert ✅")
 
 if __name__ == "__main__":
     main()
