@@ -2,32 +2,6 @@ import streamlit as st
 import pandas as pd
 import uuid
 import datetime
-import gspread
-
-
-# --------------------------
-# Google Sheets Verbindung (nur über Link in Secrets)
-# --------------------------
-def connect_gsheet(sheet_name="Wetterdaten"):
-    """
-    Verbindet die App mit einem öffentlich geteilten Google Sheet.
-    Der Link kommt aus Streamlit Secrets: st.secrets["google_sheet"]["url"]
-    """
-    try:
-        sheet_url = st.secrets["google_sheet"]["url"]
-    except KeyError:
-        st.error("Bitte den Google Sheet Link in den Streamlit Secrets unter [google_sheet] → url eintragen!")
-        st.stop()
-
-    try:
-        client = gspread.public()  # Zugriff auf öffentliches Sheet
-        sheet = client.open_by_url(sheet_url).sheet1
-        st.success("Mit Google Sheet verbunden ✅")
-        return sheet
-    except Exception as e:
-        st.error(f"Fehler beim Verbinden: {e}")
-        st.stop()
-
 
 # --------------------------
 # Datenklassen
@@ -52,7 +26,6 @@ class WetterMessung:
             "Standort": self.standort
         }
 
-
 # --------------------------
 # Basisklasse
 # --------------------------
@@ -73,26 +46,17 @@ class WetterDaten:
     def loesche_messungen(self, ids):
         self.messungen = [m for m in self.messungen if m.id not in ids]
 
-    # --------------------------
-    # Daten mit Google Sheets speichern
-    # --------------------------
-    def speichern_gsheet(self, sheet):
-        df = self.als_dataframe()
-        if df.empty:
-            return
-        sheet.clear()
-        sheet.update([df.columns.values.tolist()] + df.values.tolist())
-
-    def laden_gsheet(self, sheet):
-        data = sheet.get_all_records()
-        for row in data:
+    def laden_csv(self, csv_url):
+        df = pd.read_csv(csv_url)
+        for _, row in df.iterrows():
             self.hinzufuegen(WetterMessung(
-                row["Datum"], row["Temperatur"], row["Niederschlag"],
-                row.get("Sonnenstunden", 6.0),
+                datum=row["Datum"],
+                temperatur=row["Temperatur"],
+                niederschlag=row["Niederschlag"],
+                sonnenstunden=row.get("Sonnenstunden", 6.0),
                 id=row.get("ID"),
                 standort=row.get("Standort", "Musterstadt")
             ))
-
 
 # --------------------------
 # Erweiterung: WetterAnalyse
@@ -122,23 +86,23 @@ class WetterAnalyse(WetterDaten):
             "gesamte_sonnenstunden": df['Sonnenstunden'].sum()
         }
 
-
 # --------------------------
 # Haupt-App
 # --------------------------
 def main():
-    st.title("🌤️ Wetterweiser - Minimal")
+    st.title("🌤️ Wetterweiser - Minimal (CSV-Version)")
+
+    # WetterAnalyse Instanz
     wd = WetterAnalyse()
 
-    # Verbindung zu Google Sheet
-    sheet = connect_gsheet("Wetterdaten")
+    # Google Sheet CSV-Link
+    csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTIFjrGtLkaGP_daFfwgjHkb44_YgimPNhfDcrmvJiua1-h7wLfEaCvkaFgIgWbbcCFC7TKtCGvawGl/pub?gid=0&single=true&output=csv"
 
-    # Daten aus Google Sheet laden
-    wd.laden_gsheet(sheet)
+    # Daten laden
+    wd.laden_csv(csv_url)
 
     # DataFrame anzeigen
     st.dataframe(wd.als_dataframe())
-
 
 if __name__ == "__main__":
     main()
