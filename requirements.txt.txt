@@ -2,3 +2,5 @@ streamlit
 Pandas
 uuid
 datetime
+gspread
+oauth2client
