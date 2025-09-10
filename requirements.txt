@@ -1,6 +1,4 @@
 streamlit
-Pandas
-uuid
-datetime
-json
-github
+pandas
+requests
+PyGithub
