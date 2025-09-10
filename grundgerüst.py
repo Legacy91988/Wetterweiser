@@ -3,34 +3,24 @@ import pandas as pd
 import uuid
 import datetime
 import gspread
-import json
-import os
 
 # --------------------------
-# Google Sheets Verbindung (lokal oder Cloud)
+# Google Sheets Verbindung über Secrets (kein Service Account nötig)
 # --------------------------
-def connect_gsheet(sheet_name="Wetterdaten"):
+def connect_gsheet():
     """
-    Verbindet die App mit einem Google Sheet über Service Account.
-    - Lokal: service_account.json im Projektordner
-    - Cloud: st.secrets["gcp_service_account"]
+    Verbindet die App mit einem Google Sheet über den Link aus Streamlit Secrets.
     """
     try:
-        # Streamlit Cloud
-        sa_creds = st.secrets["gcp_service_account"]
-        client = gspread.service_account_from_dict(sa_creds)
-        st.info("Verbunden über Streamlit Cloud Secrets ✅")
-    except (FileNotFoundError, KeyError):
-        # Lokal
-        if not os.path.exists("service_account.json"):
-            st.error("service_account.json nicht gefunden! Bitte im Projektordner ablegen.")
-            st.stop()
-        with open("service_account.json") as f:
-            sa_creds = json.load(f)
-        client = gspread.service_account_from_dict(sa_creds)
-        st.info("Verbunden über lokale JSON-Datei ✅")
-    sheet = client.open(sheet_name).sheet1
-    return sheet
+        sheet_url = st.secrets["google_sheet"]["url"]
+        gc = gspread.oauth()  # OAuth flow mit lokalem Browser, nur einmal nötig
+        sh = gc.open_by_url(sheet_url)
+        worksheet = sh.sheet1
+        st.success("Google Sheet verbunden ✅")
+        return worksheet
+    except Exception as e:
+        st.error(f"Fehler beim Verbinden: {e}")
+        st.stop()
 
 # --------------------------
 # Datenklassen
@@ -86,11 +76,16 @@ class WetterDaten:
         sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
     def laden_gsheet(self, sheet):
-        data = sheet.get_all_records()
+        try:
+            data = sheet.get_all_records()
+        except gspread.exceptions.APIError:
+            data = []
         for row in data:
             self.hinzufuegen(WetterMessung(
-                row["Datum"], row["Temperatur"], row["Niederschlag"],
-                row.get("Sonnenstunden",6.0),
+                row.get("Datum", datetime.datetime.now()),
+                row.get("Temperatur", 0),
+                row.get("Niederschlag", 0),
+                row.get("Sonnenstunden", 6.0),
                 id=row.get("ID"),
                 standort=row.get("Standort","Musterstadt")
             ))
@@ -124,14 +119,14 @@ class WetterAnalyse(WetterDaten):
         }
 
 # --------------------------
-# Haupt-App (minimal)
+# Haupt-App
 # --------------------------
 def main():
-    st.title("🌤️ Wetterweiser - Minimal")
+    st.title("🌤️ Wetterweiser - Minimal (Sheet-Link Version)")
     wd = WetterAnalyse()
 
     # Verbindung zu Google Sheet
-    sheet = connect_gsheet("Wetterdaten")
+    sheet = connect_gsheet()
 
     # Daten aus Google Sheet laden
     wd.laden_gsheet(sheet)
