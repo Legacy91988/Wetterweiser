@@ -1,1 +1,65 @@
-[]
+[
+  {
+    "ID": "ba092a41-b595-4147-ba8b-bd6db6649901",
+    "Datum": "2025-09-11 20:40:36",
+    "Temperatur": 28.3,
+    "Niederschlag": 0.6,
+    "Sonnenstunden": 4.2,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "3c779594-3768-4ef1-b5e6-f0f2d5cb639a",
+    "Datum": "2025-09-10 20:40:36",
+    "Temperatur": 27.9,
+    "Niederschlag": 8.6,
+    "Sonnenstunden": 7.0,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "b7175333-c8c2-4c49-9fc1-2e12426a1f77",
+    "Datum": "2025-09-09 20:40:36",
+    "Temperatur": 21.4,
+    "Niederschlag": 9.1,
+    "Sonnenstunden": 5.0,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "982686f5-9491-4880-8272-fb14b856dab0",
+    "Datum": "2025-09-08 20:40:36",
+    "Temperatur": 19.2,
+    "Niederschlag": 9.3,
+    "Sonnenstunden": 5.0,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "2a05ee1f-e828-4fb9-89d2-2b261e44c124",
+    "Datum": "2025-09-07 20:40:36",
+    "Temperatur": 17.3,
+    "Niederschlag": 6.7,
+    "Sonnenstunden": 2.5,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "be58b68d-a72d-4e0f-8ee3-aeb4fa1a50c5",
+    "Datum": "2025-09-06 20:40:36",
+    "Temperatur": 27.3,
+    "Niederschlag": 9.2,
+    "Sonnenstunden": 3.1,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  },
+  {
+    "ID": "c7d73230-98d4-43bb-a696-c44b033f4800",
+    "Datum": "2025-09-05 20:40:36",
+    "Temperatur": 28.1,
+    "Niederschlag": 9.9,
+    "Sonnenstunden": 1.7,
+    "Quelle": "simuliert",
+    "Standort": "Musterstadt"
+  }
+]
