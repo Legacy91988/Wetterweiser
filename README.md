@@ -43,7 +43,7 @@ Wetterweiser ist ein Python-Tool zur Analyse, Visualisierung und Verwaltung von 
 
 
 * **Python 3.x**
-* **Bibliotheken: pandas, matplotlib, seaborn, numpy, streamlit, requests**
+* **Bibliotheken: streamlit, pandas, numpy, matplotlib, datetime, random, requests, uuid, json, enum, base64, os**
 
 
 
