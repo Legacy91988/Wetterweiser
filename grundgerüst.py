@@ -1,121 +1,151 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import datetime
+import random
+import requests
 import uuid
 import json
-from datetime import datetime
-from github import Github
+from enum import Enum
+import base64
+import json
+import os
 
 # --------------------------
-# Einstellungen für GitHub
+# Konstanten & Enums
 # --------------------------
-GITHUB_REPO = "Legacy91988/Wetterweiser"   # <--- hier GitHub Repo eintragen
-BRANCH = "main"                           # <--- hier Branch eintragen
-DATEI_NAME = "wetterdaten.json"           # JSON-Datei für die Wetterdaten
+class Quelle(Enum):
+    MANUELL = "manuell"
+    SIMULIERT = "simuliert"
+    LIVE = "live"
+
+GITHUB_REPO = st.secrets["Legacy91988"]["Wetterweiser"]
+GITHUB_BRANCH = st.secrets["Legacy91988"].get("branch", "main")
+GITHUB_TOKEN = st.secrets["Legacy91988"]["github_token"]
+GITHUB_JSON_PATH = "wetterdaten.json"
 
 # --------------------------
 # Datenklassen
 # --------------------------
 class WetterMessung:
-    def __init__(self, datum, temperatur, niederschlag, sonnenstunden=6.0, id=None, standort="Musterstadt"):
-        self.id = id or str(uuid.uuid4())
-        self.datum = pd.to_datetime(datum)
-        self.temperatur = temperatur
-        self.niederschlag = niederschlag
-        self.sonnenstunden = sonnenstunden
-        self.standort = standort
+    def __init__(self, *args, **kwargs):
+        st.info("WetterMessung.__init__ noch nicht implementiert")
+        pass
 
     def als_dict(self):
-        return {
-            "ID": self.id,
-            "Datum": self.datum.strftime("%Y-%m-%d %H:%M:%S"),
-            "Temperatur": self.temperatur,
-            "Niederschlag": self.niederschlag,
-            "Sonnenstunden": self.sonnenstunden,
-            "Standort": self.standort
-        }
+        st.info("WetterMessung.als_dict noch nicht implementiert")
+        pass
 
 class WetterDaten:
     def __init__(self):
         self.messungen = []
 
     def hinzufuegen(self, messung):
-        self.messungen.append(messung)
+        st.info("WetterDaten.hinzufuegen noch nicht implementiert")
+        pass
 
     def als_dataframe(self):
-        df = pd.DataFrame([m.als_dict() for m in self.messungen])
-        if not df.empty:
-            df['Datum'] = pd.to_datetime(df['Datum'])
-            df = df.sort_values('Datum')
-        return df
+        st.info("WetterDaten.als_dataframe noch nicht implementiert")
+        pass
 
     # --------------------------
-    # JSON lokal oder GitHub
+    # GitHub JSON
     # --------------------------
-    def laden(self, github=None):
-        if github:
-            try:
-                repo = github.get_repo(GITHUB_REPO)
-                content = repo.get_contents(DATEI_NAME, ref=BRANCH)
-                data = json.loads(content.decoded_content.decode())
-            except:
-                data = []
-        else:
-            try:
-                with open(DATEI_NAME, "r") as f:
-                    data = json.load(f)
-            except FileNotFoundError:
-                data = []
+    def import_github_json(self):
+        if not GITHUB_TOKEN:
+            st.warning("Kein GitHub-Token gesetzt – keine Daten geladen.")
+            return
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        try:
+            response = requests.get(url, headers=headers, timeout=5).json()
+            if "content" not in response:
+                st.info("Keine Daten auf GitHub gefunden.")
+                return
+            content = response["content"]
+            decoded = base64.b64decode(content).decode()
+            data = json.loads(decoded)
+            for entry in data:
+                if entry['ID'] not in [m.id for m in self.messungen]:
+                    self.hinzufuegen(WetterMessung(**entry))
+        except Exception as e:
+            st.error(f"Fehler beim Laden der GitHub-Daten: {e}")
 
-        for row in data:
-            self.hinzufuegen(WetterMessung(
-                row["Datum"], row["Temperatur"], row["Niederschlag"],
-                row.get("Sonnenstunden",6.0),
-                id=row.get("ID"),
-                standort=row.get("Standort","Musterstadt")
-            ))
-
-    def speichern(self, github=None):
+    def export_github_json(self):
+        if not GITHUB_TOKEN:
+            st.warning("Kein GitHub-Token gesetzt – Daten nicht gespeichert.")
+            return
         df = [m.als_dict() for m in self.messungen]
-        if github:
-            repo = github.get_repo(GITHUB_REPO)
-            try:
-                content = repo.get_contents(DATEI_NAME, ref=BRANCH)
-                repo.update_file(content.path, "Update Wetterdaten", json.dumps(df, indent=2), content.sha, branch=BRANCH)
-            except:
-                repo.create_file(DATEI_NAME, "Create Wetterdaten", json.dumps(df, indent=2), branch=BRANCH)
+        json_data = json.dumps(df, indent=2)
+
+        # Prüfen ob Datei existiert
+        url_get = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        r_get = requests.get(url_get, headers=headers)
+        sha = None
+        if r_get.status_code == 200:
+            sha = r_get.json()["sha"]
+
+        payload = {
+            "message": f"Update Wetterdaten {datetime.datetime.now()}",
+            "content": base64.b64encode(json_data.encode()).decode(),
+            "branch": GITHUB_BRANCH
+        }
+        if sha:
+            payload["sha"] = sha
+
+        url_put = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
+        r_put = requests.put(url_put, headers=headers, data=json.dumps(payload))
+        if r_put.status_code in [200,201]:
+            st.success("Daten erfolgreich auf GitHub gespeichert!")
         else:
-            with open(DATEI_NAME, "w") as f:
-                json.dump(df, f, indent=2)
+            st.error(f"Fehler beim Speichern: {r_put.text}")
+
+class WetterAnalyse(WetterDaten):
+    def extremwerte(self, ort_filter="Alle"):
+        st.info("WetterAnalyse.extremwerte noch nicht implementiert")
+        pass
+
+    def jahresstatistik(self, ort_filter="Alle"):
+        st.info("WetterAnalyse.jahresstatistik noch nicht implementiert")
+        pass
+
+    def plot_3tage_prognose(self, ort_filter="Alle"):
+        st.info("WetterAnalyse.plot_3tage_prognose noch nicht implementiert")
+        pass
+
+    def plot_7tage_vergleich(self, ort_filter="Alle"):
+        st.info("WetterAnalyse.plot_7tage_vergleich noch nicht implementiert")
+        pass
+
+    def plot_monatsvergleich(self, ort_filter="Alle"):
+        st.info("WetterAnalyse.plot_monatsvergleich noch nicht implementiert")
+        pass
+
+# --------------------------
+# App-Funktionen
+# --------------------------
+def manuelle_eingabe(wd):
+    st.info("manuelle_eingabe noch nicht implementiert")
+    pass
+
+def wettersimulation(wd):
+    st.info("wettersimulation noch nicht implementiert")
+    pass
+
+def live_wetterdaten(wd):
+    st.info("live_wetterdaten noch nicht implementiert")
+    pass
 
 # --------------------------
 # Haupt-App
 # --------------------------
 def main():
-    st.title("🌤️ Wetterweiser - Minimal mit GitHub")
-
-    # GitHub Verbindung (falls Token vorhanden)
-    github = None
-    if "github_token" in st.secrets.get("github", {}):
-        github = Github(st.secrets["github"]["github_token"])
-
-    wd = WetterDaten()
-    wd.laden(github)
-
-    # Zeige Daten
-    st.dataframe(wd.als_dataframe())
-
-    # Formular für neue Messungen
-    with st.form("neue_messung"):
-        datum = st.date_input("Datum", value=pd.Timestamp.today())
-        temperatur = st.number_input("Temperatur", value=20.0)
-        niederschlag = st.number_input("Niederschlag", value=0.0)
-        sonnenstunden = st.number_input("Sonnenstunden", value=6.0)
-        standort = st.text_input("Standort", value="Musterstadt")
-        submitted = st.form_submit_button("Hinzufügen")
-        if submitted:
-            wd.hinzufuegen(WetterMessung(datum, temperatur, niederschlag, sonnenstunden, standort=standort))
-            wd.speichern(github)
-            st.success("Messung gespeichert ✅")
+    st.title("🌤️ Wetterweiser")
+    wd = WetterAnalyse()
+    wd.import_github_json()
+    wd.export_github_json()  # Damit sichtbar, dass JSON-Funktionen laufen
 
 if __name__ == "__main__":
     main()
