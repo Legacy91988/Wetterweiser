@@ -150,7 +150,7 @@ def anzeigen_und_loeschen(wd):
 # --------------------------
 def main():
     st.title("🌤️ Wetterweiser ")
-    st.info("DGrundgerüst. Funktionen folgen.")
+    st.info("Grundgerüst. Funktionen folgen.")
 
     # Instanz der Analyseklasse
     wd = WetterAnalyse()
