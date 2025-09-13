@@ -58,6 +58,17 @@ class WetterDaten:
     def hinzufuegen(self, messung: WetterMessung):
         self.messungen.append(messung)
 
+    def existiert_eintrag(self, datum, standort):
+        for m in self.messungen:
+            if m.standort == standort and m.datum.date() == datum.date():
+                return True
+        return False
+
+    def ersetze_eintrag(self, datum, standort, neue_messung):
+        # löscht vorhandene Messung und fügt die neue ein
+        self.messungen = [m for m in self.messungen if not (m.standort == standort and m.datum.date() == datum.date())]
+        self.messungen.append(neue_messung)
+
     def loeschen(self, id: str):
         # Messung nach ID löschen
         pass
@@ -181,17 +192,25 @@ class WetterAnalyse(WetterDaten):
 def manuelle_eingabe(wd):
     st.subheader("Manuelle Eingabe")
     datum = st.date_input("Datum")
-    standort = st.text_input("Ort", value="Musterstadt")
+    standort = st.text_input("Ort")
     temp_min = st.number_input("Min °C", value=15.0)
     temp_max = st.number_input("Max °C", value=25.0)
-    temperatur = round((temp_min + temp_max)/2, 1)
+    temperatur = round((temp_min + temp_max) / 2, 1)
     nied = st.number_input("Niederschlag (mm)", value=0.0)
     sonne = st.number_input("Sonnenstunden", value=6.0)
+
     if st.button("Hinzufügen"):
         datum_dt = datetime.datetime.combine(datum, datetime.datetime.now().time())
-        wd.hinzufuegen(WetterMessung(datum_dt, temperatur, nied, sonne, Quelle.MANUELL, standort))
-        wd.export_github_json()
-        st.success(f"Messung für {standort} am {datum} hinzugefügt!")
+
+        # Prüfen, ob Eintrag für Datum + Standort schon existiert
+        if wd.existiert_eintrag(datum_dt, standort):
+            st.warning(f"Für {standort} am {datum_dt.date()} existiert bereits ein Eintrag!")
+        else:
+            wd.hinzufuegen(WetterMessung(datum_dt, temperatur, nied, sonne, quelle=Quelle.MANUELL, standort=standort))
+            wd.export_github_json()
+            st.success(f"{standort} am {datum_dt.date()} hinzugefügt!")
+
+
 
 
 def wettersimulation(wd):
