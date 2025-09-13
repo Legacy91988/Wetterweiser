@@ -74,7 +74,6 @@ wetterweiser/
 └── .gitignore
 
 
-
 ---
 
 ## 🔮 Erweiterungsmöglichkeiten
