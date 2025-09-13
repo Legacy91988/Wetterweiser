@@ -268,5 +268,14 @@
     "Sonnenstunden": 2.0,
     "Quelle": "Manuell",
     "Standort": "Gommern"
+  },
+  {
+    "ID": "20250911111936_718",
+    "Datum": "2025-09-11 11:19:36",
+    "Temperatur": 16.5,
+    "Niederschlag": 4.9,
+    "Sonnenstunden": 3.5,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
   }
 ]
