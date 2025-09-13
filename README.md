@@ -4,7 +4,6 @@ Ein interaktives **Streamlit-Dashboard** zur Verwaltung, Analyse und Prognose vo
 Das Tool erlaubt die **manuelle Eingabe**, **Simulation** oder den **Abruf von Live-Wetterdaten** über die OpenWeather-API.  
 Alle Messungen können in einem GitHub-Repository gespeichert und später wieder importiert werden.
 
-
 ---
 
 ## 📑 Inhalt
@@ -19,81 +18,78 @@ Alle Messungen können in einem GitHub-Repository gespeichert und später wieder
   - Monatsvergleich (aktuelles vs. letztes Jahr)  
 - Interaktive Diagramme mit Matplotlib  
 
-
 ---
 
 ## ⚙️ Voraussetzungen
 
 - **Python 3.9+**  
-- Installierte Pakete (z. B. per `pip install ):  
-  
-  streamlit
-  pandas
-  numpy
-  matplotlib
-  requests
-
-Streamlit Secrets mit den Zugangsdaten:
-
-GitHub Token + Repo für Speicherung der Wetterdaten
-
-OpenWeather API-Key für Live-Wetterdaten
+- Installierte Pakete (z. B. per `pip install`):  
+streamlit
+pandas
+numpy
+matplotlib
+requests
 
 
 
+- Streamlit Secrets mit den Zugangsdaten:
+  - GitHub Token + Repo für Speicherung der Wetterdaten
+  - OpenWeather API-Key für Live-Wetterdaten
 
-🎯 Ziel
 
-Dieses Projekt soll es ermöglichen, Wetterdaten zentral zu sammeln, zu speichern und visuell aufzubereiten.
+---
+
+## 🎯 Ziel
+
+Dieses Projekt soll es ermöglichen, Wetterdaten zentral zu sammeln, zu speichern und visuell aufzubereiten.  
 Durch flexible Eingabemethoden (manuell, Simulation, Live-Daten) eignet es sich sowohl für Übungszwecke als auch für kleine private Wetterstationen.
 
 
+---
+
+## 🔧 Funktionen
+
+- Manuelle Eingabe von Temperatur, Niederschlag und Sonnenstunden  
+- Simulation von Wetterdaten über mehrere Tage  
+- Abruf von Live-Daten über die OpenWeather-API  
+- Speicherung der Daten als JSON in GitHub  
+- Export aller Wetterdaten als CSV  
+- Analyse & Visualisierung von Trends und Statistiken  
 
 
-🔧 Funktionen
 
-Manuelle Eingabe von Temperatur, Niederschlag und Sonnenstunden
+---
 
-Simulation von Wetterdaten über mehrere Tage
+## 📂 Projektstruktur
 
-Abruf von Live-Daten über die OpenWeather-API
-
-Speicherung der Daten als JSON in GitHub
-
-Export aller Wetterdaten als CSV
-
-Analyse & Visualisierung von Trends und Statistiken
-
-
-📂 Projektstruktur
-
-📂 Projektstruktur
 
 wetterweiser/
 ├── app/
-│   └── wetterweiser.py
+│ └── wetterweiser.py
 ├── data/
-│   └── wetterdaten.json
+│ └── wetterdaten.json
 ├── docs/
-│   └── README.md
+│ └── README.md
 ├── requirements.txt
 └── .gitignore
 
 
-🔮 Erweiterungsmöglichkeiten
 
-Erweiterung der Prognosemodelle (z. B. Machine Learning)
+---
 
-Unterstützung für mehrere Wetter-APIs
+## 🔮 Erweiterungsmöglichkeiten
 
-Integration einer Benutzerverwaltung
+- Erweiterung der Prognosemodelle (z. B. Machine Learning)  
+- Unterstützung für mehrere Wetter-APIs  
+- Integration einer Benutzerverwaltung  
+- Export in weitere Formate (Excel, Datenbanken)  
+- Automatischer Scheduler für tägliche Live-Datenabfragen  
 
-Export in weitere Formate (Excel, Datenbanken)
+---
 
-Automatischer Scheduler für tägliche Live-Datenabfragen
-
-
-
-📜 Lizenz:
+## 📜 Lizenz
 
 MIT-Lizenz
+
+
+
