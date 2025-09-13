@@ -67,6 +67,8 @@ Analyse & Visualisierung von Trends und Statistiken
 
 📂 Projektstruktur
 
+📂 Projektstruktur
+
 wetterweiser/
 ├── app/
 │   └── wetterweiser.py
