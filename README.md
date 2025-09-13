@@ -4,6 +4,7 @@ Ein interaktives **Streamlit-Dashboard** zur Verwaltung, Analyse und Prognose vo
 Das Tool erlaubt die **manuelle Eingabe**, **Simulation** oder den **Abruf von Live-Wetterdaten** über die OpenWeather-API.  
 Alle Messungen können in einem GitHub-Repository gespeichert und später wieder importiert werden.
 
+
 ---
 
 ## 📑 Inhalt
@@ -17,6 +18,7 @@ Alle Messungen können in einem GitHub-Repository gespeichert und später wieder
   - Vergleich der letzten 7 Tage  
   - Monatsvergleich (aktuelles vs. letztes Jahr)  
 - Interaktive Diagramme mit Matplotlib  
+
 
 ---
 
@@ -38,10 +40,14 @@ GitHub Token + Repo für Speicherung der Wetterdaten
 OpenWeather API-Key für Live-Wetterdaten
 
 
+
+
 🎯 Ziel
 
 Dieses Projekt soll es ermöglichen, Wetterdaten zentral zu sammeln, zu speichern und visuell aufzubereiten.
 Durch flexible Eingabemethoden (manuell, Simulation, Live-Daten) eignet es sich sowohl für Übungszwecke als auch für kleine private Wetterstationen.
+
+
 
 
 🔧 Funktionen
@@ -61,11 +67,15 @@ Analyse & Visualisierung von Trends und Statistiken
 
 📂 Projektstruktur
 
-.
-├── wetterweiser.py      # Hauptprogramm mit Streamlit-App
-├── requirements.txt     # Python-Abhängigkeiten
-├── README.md            # Projektdokumentation
-└── wetterdaten.json     # Gespeicherte Wetterdaten (optional)
+wetterweiser/
+├── app/
+│   └── wetterweiser.py
+├── data/
+│   └── wetterdaten.json
+├── docs/
+│   └── README.md
+├── requirements.txt
+└── .gitignore
 
 
 🔮 Erweiterungsmöglichkeiten
@@ -81,5 +91,7 @@ Export in weitere Formate (Excel, Datenbanken)
 Automatischer Scheduler für tägliche Live-Datenabfragen
 
 
-📜 Lizenz
+
+📜 Lizenz:
+
 MIT-Lizenz
