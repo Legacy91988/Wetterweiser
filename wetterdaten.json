@@ -178,5 +178,113 @@
     "Sonnenstunden": 281.6,
     "Quelle": "Manuell",
     "Standort": "Gommern"
+  },
+  {
+    "ID": "20250901110826_254",
+    "Datum": "2025-09-01 11:08:26",
+    "Temperatur": 20.8,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 6.5,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250902110857_230",
+    "Datum": "2025-09-02 11:08:57",
+    "Temperatur": 19.6,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 4.6,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250903110921_936",
+    "Datum": "2025-09-03 11:09:21",
+    "Temperatur": 18.6,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 9.7,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250904111005_195",
+    "Datum": "2025-09-04 11:10:05",
+    "Temperatur": 21.8,
+    "Niederschlag": 14.3,
+    "Sonnenstunden": 9.7,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250905111636_399",
+    "Datum": "2025-09-05 11:16:36",
+    "Temperatur": 17.6,
+    "Niederschlag": 0.1,
+    "Sonnenstunden": 7.4,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250906111712_291",
+    "Datum": "2025-09-06 11:17:12",
+    "Temperatur": 17.1,
+    "Niederschlag": 0.1,
+    "Sonnenstunden": 11.6,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250907111737_764",
+    "Datum": "2025-09-07 11:17:37",
+    "Temperatur": 17.4,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 12.0,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250908111759_998",
+    "Datum": "2025-09-08 11:17:59",
+    "Temperatur": 17.5,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 11.0,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250909111826_386",
+    "Datum": "2025-09-09 11:18:26",
+    "Temperatur": 16.5,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 7.3,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250910111901_664",
+    "Datum": "2025-09-10 11:19:01",
+    "Temperatur": 17.9,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 2.0,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250911111936_718",
+    "Datum": "2025-09-11 11:19:36",
+    "Temperatur": 16.5,
+    "Niederschlag": 4.9,
+    "Sonnenstunden": 3.5,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  },
+  {
+    "ID": "20250912111955_887",
+    "Datum": "2025-09-12 11:19:55",
+    "Temperatur": 15.5,
+    "Niederschlag": 1.5,
+    "Sonnenstunden": 7.6,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
   }
 ]
