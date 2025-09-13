@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "ID": "20240115104431_234",
+    "Datum": "2024-01-15 10:44:31",
+    "Temperatur": 0.6,
+    "Niederschlag": 41.4,
+    "Sonnenstunden": 73.2,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
+  }
+]
