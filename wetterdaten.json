@@ -43,5 +43,14 @@
     "Sonnenstunden": 233.9,
     "Quelle": "Manuell",
     "Standort": "Gommern"
+  },
+  {
+    "ID": "20240615104843_626",
+    "Datum": "2024-06-15 10:48:43",
+    "Temperatur": 19.8,
+    "Niederschlag": 50.4,
+    "Sonnenstunden": 222.4,
+    "Quelle": "Manuell",
+    "Standort": "Gommern"
   }
 ]
