@@ -295,5 +295,14 @@
     "Sonnenstunden": 0.8,
     "Quelle": "Live",
     "Standort": "Burg"
+  },
+  {
+    "ID": "20250916062523_226",
+    "Datum": "2025-09-16 06:25:23",
+    "Temperatur": 19.71,
+    "Niederschlag": 0,
+    "Sonnenstunden": 12.4,
+    "Quelle": "Live",
+    "Standort": "New york"
   }
 ]
