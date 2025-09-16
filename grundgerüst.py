@@ -28,14 +28,14 @@ GITHUB_JSON_PATH = "wetterdaten.json"
 
 
 class WetterMessung:
-    def __init__(self, datum, temperatur, niederschlag, sonnenstunden, quelle=Quelle.MANUELL, standort="Unbekannt", id=None):
-        # eindeutige ID´s
-        self.id = id or f"{datum.strftime('%Y%m%d%H%M%S')}_{random.randint(100,999)}"
-        self.datum = datum
+    def __init__(self, datum, temperatur, niederschlag, sonnenstunden=None, id=None, quelle=Quelle.MANUELL, standort="Musterstadt"):
+        #eindeutige ID´s
+        self.id = id or str(uuid.uuid4())
+        self.datum = pd.to_datetime(datum)
         self.temperatur = temperatur
         self.niederschlag = niederschlag
-        self.sonnenstunden = sonnenstunden
-        self.quelle = quelle
+        self.sonnenstunden = sonnenstunden if sonnenstunden is not None else round(random.uniform(0,12),1)
+        self.quelle = quelle.value if isinstance(quelle, Quelle) else quelle
         self.standort = standort
 
     def als_dict(self):
@@ -77,63 +77,81 @@ class WetterDaten:
         # Alle Messungen als DataFrame zurückgeben
         return pd.DataFrame([m.als_dict() for m in self.messungen]) if self.messungen else pd.DataFrame()
 
-    def import_github_json(self, debug_mode=False):
-        if not GITHUB_TOKEN:
-            st.warning("Kein GitHub-Token gesetzt – keine Daten geladen.")
-            return
-
+    def import_github_json(self):
+        #Importiert Messdaten von GitHub aus der JSON-Datei
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
 
         try:
             response = requests.get(url, headers=headers, timeout=5).json()
-
-            if debug_mode:
-                st.text_area("🔍 GitHub-Response", json.dumps(response, indent=2), height=250)
-
-            if "content" not in response:
-                st.info("Keine Daten auf GitHub gefunden.")
-                return
-
-            content = response["content"]
-            decoded = base64.b64decode(content).decode()
-            data = json.loads(decoded)
-
-            for entry in data:
-                # wandelt die Namen um
-                mapped_entry = {
-                    "id": entry.get("ID", None),
-                    "datum": pd.to_datetime(entry.get("Datum")) if "Datum" in entry else datetime.datetime.now(),
-                    "temperatur": entry.get("Temperatur", 0),
-                    "niederschlag": entry.get("Niederschlag", 0),
-                    "sonnenstunden": entry.get("Sonnenstunden", 0),
-                    "quelle": entry.get("Quelle", Quelle.MANUELL),
-                    "standort": entry.get("Standort", "Unbekannt")
-                }
-
-                if mapped_entry['id'] not in [m.id for m in self.messungen]:
-                    try:
-                        self.hinzufuegen(WetterMessung(**mapped_entry))
-                    except ValueError as e:
-                        st.warning(f"Ungültige Messung übersprungen: {e}")
-
         except Exception as e:
-            st.error(f"Fehler beim Laden der GitHub-Daten: {e}")
-            if debug_mode:
-                st.text_area("🔍 Traceback", traceback.format_exc(), height=200)
+            st.error(f"Fehler beim Zugriff auf GitHub: {e}")
+            return
+
+        if "content" not in response:
+            msg = response.get("message", "Unbekannter Fehler beim Laden der Daten.")
+            st.info(f"GitHub-API-Fehler: {msg}")
+            return
+
+        try:
+            content = base64.b64decode(response["content"]).decode("utf-8")
+            data = json.loads(content)
+        except Exception as e:
+            st.error(f"Fehler beim Dekodieren der GitHub-Daten: {e}")
+            return
+
+        neue_eintraege = 0
+        for eintrag in data:
+            # Schlüssel anpassen: "ID" -> "id"
+            eintrag_korrigiert = {
+                'id': eintrag.get("ID"),
+                'datum': eintrag.get("Datum"),
+                'temperatur': eintrag.get("Temperatur"),
+                'niederschlag': eintrag.get("Niederschlag"),
+                'sonnenstunden': eintrag.get("Sonnenstunden"),
+                'quelle': eintrag.get("Quelle"),
+                'standort': eintrag.get("Standort")
+            }
+            wetter = WetterMessung(**eintrag_korrigiert)
+            if not self.existiert_eintrag(wetter.datum, wetter.standort):
+                self.hinzufuegen(wetter)
+                neue_eintraege += 1
+
+        st.success(f"{neue_eintraege} neue Einträge von GitHub importiert.")
+
+    @staticmethod
+    def load_github_data(debug=False):
+       #lädt Wetterdaten aus GitHub , für die lokale Version
+
+
+        def _load():
+            wd = WetterDaten()
+            wd.import_github_json()
+            return wd
+
+        if debug:
+            return _load()
+        else:
+            @st.cache_data(ttl=300)
+            def cached_load():
+                return _load()
+
+            return cached_load()
 
     def export_github_json(self, debug_mode=False):
-        # Daten auf GitHub speichern
         if not GITHUB_TOKEN:
             st.warning("Kein GitHub-Token gesetzt – Daten nicht gespeichert.")
             return
+
         df = [m.als_dict() for m in self.messungen]
         json_data = json.dumps(df, indent=2)
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+
         # Prüfen ob Datei existiert
         url_get = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
         r_get = requests.get(url_get, headers=headers)
         sha = r_get.json()["sha"] if r_get.status_code == 200 else None
+
         payload = {
             "message": f"Update Wetterdaten {datetime.datetime.now()}",
             "content": base64.b64encode(json_data.encode()).decode(),
@@ -142,17 +160,18 @@ class WetterDaten:
         if sha:
             payload["sha"] = sha
 
-            # Debug-Ausgabe
-            if debug_mode:
-                st.text_area("🔍 GitHub-Payload", json.dumps(payload, indent=2), height=250)
+        if debug_mode:
+            st.text_area("🔍 GitHub-Payload", json.dumps(payload, indent=2), height=250)
 
-            url_put = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
-            r_put = requests.put(url_put, headers=headers, data=json.dumps(payload))
-            if r_put.status_code in [200, 201]:
-                st.success("Daten erfolgreich auf GitHub gespeichert!")
-            else:
-                st.error(f"Fehler beim Speichern: {r_put.text}")
+        url_put = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
+        r_put = requests.put(url_put, headers=headers, data=json.dumps(payload))
+        if r_put.status_code in [200, 201]:
+            st.success("Daten erfolgreich auf GitHub gespeichert!")
+        else:
+            st.error(f"Fehler beim Speichern: {r_put.text}")
 
+
+# Analyse & Diagramme
 
 class WetterAnalyse(WetterDaten):
     def extremwerte(self, ort_filter="Alle"):
@@ -213,6 +232,7 @@ def manuelle_eingabe(wd):
 
 
 
+
 def wettersimulation(wd):
     st.subheader("Simulation")
     ort = st.text_input("Ort", "Musterstadt")
@@ -236,52 +256,48 @@ def wettersimulation(wd):
         st.success(f"{tage} Tage simuliert für {ort}!")
 
 
-def live_wetterdaten(wd, debug_mode=False):
-    st.subheader("Live-Daten")
-    api_key = st.secrets["openweather"]["api_key"]
 
-    if "api_info_angezeigt" not in st.session_state:
-        if api_key:
-            st.info("API-Key wird automatisch aus den Streamlit Secrets verwendet.")
-        else:
-            st.warning("Kein API-Key gefunden – Live-Daten können nicht abgerufen werden.")
-        st.session_state["api_info_angezeigt"] = True
+def live_wetterdaten(wd, ort):
+    # OWM_API_KEY aus Streamlit Secrets holen
+    OWM_API_KEY: str = st.secrets.get("OWM_API_KEY", "")
 
-    ort = st.text_input("Ort für Live-Wetter")
-    if st.button("Abrufen"):
-        datum = datetime.datetime.now()
-        if not api_key.strip():
-            st.error("Kein API-Key – Daten können nicht geladen werden.")
-            return
-        try:
-            url = f"http://api.openweathermap.org/data/2.5/weather?q={ort}&appid={api_key}&units=metric"
-            r = requests.get(url, timeout=5)
-            data = r.json()
+    if not OWM_API_KEY:
+        st.error("OpenWeatherMap API-Key ist nicht gesetzt!")
+        return
 
-            # Debug: kompletten API-Response anzeigen
-            if debug_mode:
-                st.text_area("🔍 OpenWeather API Response", json.dumps(data, indent=2), height=250)
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={ort}&appid={OWM_API_KEY}&units=metric&lang=de"
 
-            if r.status_code != 200 or "main" not in data:
-                st.error(f"API-Fehler ({r.status_code}): {data.get('message','Unbekannter Fehler')}")
-                return
+    try:
+        data = requests.get(url, timeout=5).json()
+    except Exception as e:
+        st.error(f"Fehler beim Abrufen der Live-Daten: {e}")
+        return
 
-            temp = data["main"]["temp"]
-            nied = data.get("rain", {}).get("1h", 0)
-            sunrise = datetime.datetime.fromtimestamp(data["sys"]["sunrise"])
-            sunset = datetime.datetime.fromtimestamp(data["sys"]["sunset"])
-            tageslaenge = (sunset - sunrise).total_seconds() / 3600
-            wolken = data.get("clouds", {}).get("all", 0)
-            sonne = round(max(0, tageslaenge * (1 - wolken / 100)), 1)
+    # Prüfen, ob API gültige Daten zurückgegeben hat
+    temp = data.get("main", {}).get("temp")
+    niederschlag = data.get("rain", {}).get("1h", 0)
 
-            wd.hinzufuegen(WetterMessung(datum, temp, nied, sonne, quelle=Quelle.LIVE, standort=ort))
-            wd.export_github_json(debug_mode=debug_mode)
-            st.success(f"Live-Wetter für {ort} hinzugefügt!")
+    if temp is None:
+        msg = data.get("message", "Keine Temperaturdaten erhalten.")
+        st.error(f"OpenWeatherMap-Fehler: {msg}")
+        return
 
-        except Exception as e:
-            st.error(f"Fehler: {e}")
-            if debug_mode:
-                st.text_area("🔍 Traceback", traceback.format_exc(), height=200)
+    # Neue Messung erstellen
+    messung = WetterMessung(
+        datum=datetime.datetime.now(),
+        temperatur=temp,
+        niederschlag=niederschlag,
+        sonnenstunden=0,
+        quelle=Quelle.LIVE,
+        standort=ort
+    )
+
+    if not wd.existiert_eintrag(messung.datum, ort):
+        wd.hinzufuegen(messung)
+        st.success(f"Live-Daten für {ort} hinzugefügt: {temp}°C, {niederschlag}mm")
+    else:
+        st.info(f"Für {ort} existiert bereits ein Eintrag für heute.")
+
 
 
 def download_wetterdaten_csv(wd):
@@ -297,7 +313,8 @@ def anzeigen_und_loeschen(wd):
 # --------------------------
 def main():
     st.title("🌤️ Wetterweiser")
-    st.info("Dateneingabe funktioniert - weitere Funktionen folgen")
+    st.info("Dateneingabe funktioniert – weitere Funktionen folgen")
+
     # Entwickler-Passwort prüfen
     dev_password = st.secrets["dev"]["debug_password"]
     eingabe = st.sidebar.text_input(
@@ -307,7 +324,7 @@ def main():
     )
     ist_entwickler = eingabe == dev_password
 
-    # Checkbox nur sichtbar, wenn Entwickler
+    # Debug-Modus nur für Entwickler
     debug_mode = False
     if ist_entwickler:
         debug_mode = st.sidebar.checkbox(
@@ -320,7 +337,7 @@ def main():
 
     # WetterAnalyse-Objekt erstellen und GitHub-Daten laden
     wd = WetterAnalyse()
-    wd.import_github_json(debug_mode=debug_mode)
+    wd.import_github_json()  
 
     if debug_mode:
         st.text_area(
@@ -338,11 +355,14 @@ def main():
     elif modus == "Simulation":
         wettersimulation(wd)
     elif modus == "Live-Abfrage":
-        live_wetterdaten(wd, debug_mode=debug_mode)
+        ort = st.text_input("Ort für Live-Abfrage", "Musterstadt")
+        if st.button("Live-Daten abrufen"):
+            live_wetterdaten(wd, ort)
 
-    # CSV-Download
+    # CSV-Download und Löschen (noch nicht implementiert)
     download_wetterdaten_csv(wd)
     anzeigen_und_loeschen(wd)
+
 
 
 if __name__ == "__main__":
