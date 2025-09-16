@@ -286,23 +286,5 @@
     "Sonnenstunden": 7.6,
     "Quelle": "Manuell",
     "Standort": "Gommern"
-  },
-  {
-    "ID": "20250915055108_508",
-    "Datum": "2025-09-15 05:51:08",
-    "Temperatur": 13.4,
-    "Niederschlag": 2.66,
-    "Sonnenstunden": 0.8,
-    "Quelle": "Live",
-    "Standort": "Burg"
-  },
-  {
-    "ID": "20250916062523_226",
-    "Datum": "2025-09-16 06:25:23",
-    "Temperatur": 19.71,
-    "Niederschlag": 0,
-    "Sonnenstunden": 12.4,
-    "Quelle": "Live",
-    "Standort": "New york"
   }
 ]
