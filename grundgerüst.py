@@ -228,7 +228,8 @@ def wettersimulation(wd):
 
 def live_wetterdaten(wd, ort):
     # OWM_API_KEY aus Streamlit Secrets holen
-    OWM_API_KEY: str = st.secrets.get("OWM_API_KEY", "")
+    OWM_API_KEY = st.secrets["Legacy91988"]["OWM_API_KEY"]
+
     if not OWM_API_KEY:
         st.error("OpenWeatherMap API-Key ist nicht gesetzt!")
         return
