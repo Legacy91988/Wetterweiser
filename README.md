@@ -124,6 +124,13 @@ Export in weitere Formate (Excel, Datenbanken)
 
 Automatischer Scheduler für tägliche Live-Datenabfragen
 
+
+## 🌐 Live-Demo
+
+Die App ist aktuell in Entwicklung. Du kannst sie bereits ausprobieren, aber beachte bitte, dass noch nicht alle Funktionen implementiert sind.  
+
+[Wetterweiser live testen](https://wetterweiser-3rermkdppjzwsnqnchmwapp.streamlit.app)  
+
 📜 Lizenz
 
 MIT-Lizenz
