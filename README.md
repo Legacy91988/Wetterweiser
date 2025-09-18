@@ -131,6 +131,8 @@ Die App ist aktuell in Entwicklung. Du kannst sie bereits ausprobieren, aber bea
 
 [Wetterweiser live testen](https://wetterweiser-3rermkdppjzwsnqnchmwapp.streamlit.app)  
 
+wetterweiser-3rermkdppjzwsnqnchmwapp.streamlit.app
+
 📜 Lizenz
 
 MIT-Lizenz
