@@ -71,30 +71,37 @@ wetterweiser/
 ## 🖥️ Lokale Installation & Ausführung
 
 1. **Repository klonen**
+
    ```bash
    git clone https://github.com/DEIN_USERNAME/Wetterweiser.git
    cd Wetterweiser
 
 2. **Virtuelle Umgebung erstellen & aktivieren (empfohlen)**
+
 python -m venv .venv
 source .venv/bin/activate   # Linux/macOS
 .venv\Scripts\activate      # Windows
 
 3. **Abhängigkeiten installieren**
+
 pip install -r requirements.txt
 
 4. **Streamlit-Secrets konfigurieren**
+
 Lege im Projektordner einen Ordner .streamlit an und darin die Datei secrets.toml mit folgendem Inhalt:
 
 [Legacy91988]
 Wetterweiser = "Legacy91988/Wetterweiser"
+
 github_token = "DEIN_GITHUB_TOKEN"
+
 OWM_API_KEY = "DEIN_OPENWEATHERMAP_KEY"
 
 [dev]
 debug_password = "DEIN_DEV_PASSWORT"
 
 5. **App starten**
+
 streamlit run app/wetterweiser.py
 
 
