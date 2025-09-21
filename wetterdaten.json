@@ -18,8 +18,8 @@
     "Sonnenstunden": 58.8,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": -1.1,
-    "Temp_max": 16.7
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "b6cf5170-b889-48f5-a86e-6352521d5dfd",
@@ -29,8 +29,8 @@
     "Sonnenstunden": 131.1,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": -1.0,
-    "Temp_max": 21.3
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "b5f1199b-110f-4e70-8add-622594ac91ca",
@@ -40,8 +40,8 @@
     "Sonnenstunden": 151.3,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": -2.2,
-    "Temp_max": 27.3
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "801f9ba6-1e2a-4eba-95f6-de64aaceeca3",
@@ -51,8 +51,8 @@
     "Sonnenstunden": 233.9,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 4.3,
-    "Temp_max": 27.5
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "5d1f24a4-1bfe-4632-b568-548e83026564",
@@ -62,8 +62,8 @@
     "Sonnenstunden": 222.4,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 7.5,
-    "Temp_max": 32.1
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "5a8b4661-0dd8-4258-a8f8-224742769f97",
@@ -73,19 +73,8 @@
     "Sonnenstunden": 229.1,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 10.2,
-    "Temp_max": 33.2
-  },
-  {
-    "ID": "eaa51ee6-297e-4f2b-90eb-4c53699b742c",
-    "Datum": "2025-08-15 00:00:00",
-    "Temperatur": 21.8,
-    "Niederschlag": 34.5,
-    "Sonnenstunden": 260.4,
-    "Quelle": "manuell",
-    "Standort": "Gommern",
-    "Temp_min": 9.2,
-    "Temp_max": 34.4
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "79ceb09e-2f73-42d1-89e4-6e777e2e8940",
@@ -95,8 +84,8 @@
     "Sonnenstunden": 208.2,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 6.1,
-    "Temp_max": 33.7
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "cb247a5c-a254-4a2b-95d3-dd69c7d6acfa",
@@ -106,8 +95,8 @@
     "Sonnenstunden": 119.5,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 1.9,
-    "Temp_max": 20.7
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "d5439aa5-8fff-4bda-983e-1d39864d007f",
@@ -117,8 +106,8 @@
     "Sonnenstunden": 37.2,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": -1.4,
-    "Temp_max": 15.7
+    "Temp_min": null,
+    "Temp_max": null
   },
   {
     "ID": "c3fda938-f949-4acb-a245-73558d0ee508",
@@ -128,7 +117,7 @@
     "Sonnenstunden": 43.3,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": -3.9,
-    "Temp_max": 14.4
+    "Temp_min": null,
+    "Temp_max": null
   }
 ]
