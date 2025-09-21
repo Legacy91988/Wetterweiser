@@ -1,46 +1,62 @@
-import streamlit as st                  # Web-App-Oberfläche
-import pandas as pd                     # für Tabellen und Daten
-import numpy as np                      # mathematische Berechnungen
-import matplotlib.pyplot as plt         # für Diagramme
-import datetime                         # Datum & Uhrzeit
-import random                           # für die Zufallswerte
-import requests                         # für HTTP- Anfragen
-import uuid                             # für eindeutige ID´s
-from enum import Enum                 # Quelle der Wetterdaten
-import base64                           # zum kodieren/decodieren der Json Daten
-import json                             # Laden und Speichern
-import traceback                        # für Fehlermeldungungen im Debug Modus
+import base64  # zum kodieren/decodieren der Json Daten
+import datetime  # Datum & Uhrzeit
+import json  # Laden und Speichern
+import random  # für die Zufallswerte
+import traceback  # für Fehlermeldungungen im Debug Modus
+import uuid  # für eindeutige ID´s
+from enum import Enum  # Quelle der Wetterdaten
+import matplotlib.pyplot as plt  # für Diagramme
+import numpy as np  # mathematische Berechnungen
+import pandas as pd  # für Tabellen und Daten
+import requests  # für HTTP- Anfragen
+import streamlit as st  # Web-App-Oberfläche
 
-# Konstanten & Enums
+
+# Quelle der Wetterdaten (Enum für bessere Übersicht und Sicherheit)
+
 class Quelle(Enum):
-    MANUELL = "Manuell"
-    SIMULIERT = "Simuliert"
-    LIVE = "Live"
+    MANUELL = "manuell"  # von Hand eingeben
+    SIMULIERT = "simuliert"  # automatisch generierte zufalls Daten
+    LIVE = "live"  # von der Wetter-API abrufen
+
 
 # GitHub-Konfiguration aus Streamlit Secrets
+# Repo-Name, Branch, Token und Pfad zur JSON-Datei mit Wetterdaten
 
 GITHUB_REPO = st.secrets["Legacy91988"]["Wetterweiser"]
 GITHUB_BRANCH = st.secrets["Legacy91988"].get("branch", "main")
 GITHUB_TOKEN = st.secrets["Legacy91988"]["github_token"]
 GITHUB_JSON_PATH = "wetterdaten.json"
 
+
+# Klasse für einzelne Wettermessungen
 class WetterMessung:
-    def __init__(self, datum, temperatur, niederschlag, sonnenstunden=None, id=None, quelle=Quelle.MANUELL, standort="Musterstadt"):
-        # Eindeutige ID´s
-        self.id = id or str(uuid.uuid4())
-        self.datum = pd.to_datetime(datum)
+    def __init__(
+        self,
+        datum,
+        temperatur,
+        niederschlag,
+        sonnenstunden=None,
+        id=None,
+        quelle=Quelle.MANUELL,
+        standort="Musterstadt",
+    ):
+        # eindeutige ID´s
+        self.id = id or str(
+            uuid.uuid4()
+        )  # eindeutige ID ( neu erzeugt, falls keine Vorhanden)
+        self.datum = pd.to_datetime(datum)  # Datum in pandas datetime umwandeln
         self.temperatur = temperatur
         self.niederschlag = niederschlag
-        self.sonnenstunden = sonnenstunden if sonnenstunden is not None else round(random.uniform(0, 12), 1)
-        # Sicherstellen, dass 'Quelle' immer als Enum behandelt wird
-        if isinstance(quelle, Quelle):
-            self.quelle = quelle.value
-        else:
-            try:
-                self.quelle = Quelle(quelle).value
-            except ValueError:
-                self.quelle = Quelle.MANUELL.value  # Fallback
-        self.standort = standort
+        self.sonnenstunden = (
+            sonnenstunden
+            if sonnenstunden is not None
+            else round(
+                random.uniform(0, 12), 1
+            )  # zufällige Sonnenstunden, falls keine angegeben
+        )
+        self.quelle = quelle.value if isinstance(quelle, Quelle) else quelle
+        self.standort = standort  # Ort der Messung
 
     def als_dict(self):
         # Wandelt die Messung in ein Dictionary um
@@ -51,260 +67,763 @@ class WetterMessung:
             "Niederschlag": self.niederschlag,
             "Sonnenstunden": self.sonnenstunden,
             "Quelle": self.quelle,
-            "Standort": self.standort
+            "Standort": self.standort,
         }
 
 
+# Klasse zum Verwalten mehrerer Wettermessung
 class WetterDaten:
     def __init__(self):
-        self.messungen = []
+        self.messungen = []  # Liste aller Messung
 
     def hinzufuegen(self, messung: WetterMessung):
         self.messungen.append(messung)
 
+    # prüfen ob für einen Ort oder Datum ein Eintrag existiert
     def existiert_eintrag(self, datum, standort):
         for m in self.messungen:
-            if m.standort == standort and m.datum.date() == pd.to_datetime(datum).date():
+            if m.standort == standort and m.datum.date() == datum.date():
                 return True
         return False
 
+    # ersetzt eine bestehende Messung
     def ersetze_eintrag(self, datum, standort, neue_messung):
-        # löscht vorhandene Messung und fügt die neue ein
-        self.messungen = [m for m in self.messungen if not (m.standort == standort and m.datum.date() == pd.to_datetime(datum).date())]
-        self.messungen.append(neue_messung)
+        # alte Messung entfernen
+        self.messungen = [
+            m
+            for m in self.messungen
+            if not (m.standort == standort and m.datum.date() == datum.date())
+        ]
+        # neue Messung hinzufügen
+        self.hinzufuegen(neue_messung)
 
-    # Messung nach ID löschen
+    # Wandelt alle Messung in ein pandas DataFrame um
+    def als_dataframe(self):
+        # Liste aller Dicts in DataFrame
+        df = pd.DataFrame([m.als_dict() for m in self.messungen])
+        if not df.empty:
+            df["Datum"] = pd.to_datetime(df["Datum"])
+            df = df.sort_values("Datum")  # nach Datum sortieren
+        return df
+
+    # löscht eine Messung anhand ihrer ID
     def loeschen(self, messung_id):
         self.messungen = [m for m in self.messungen if m.id != messung_id]
 
-    def als_dataframe(self):
-        df = pd.DataFrame([m.als_dict() for m in self.messungen])
-        if not df.empty:
-            df['Datum'] = pd.to_datetime(df['Datum'])
-            df = df.sort_values('Datum', ascending=False)
-        return df
-
     def import_github_json(self):
-        # Importiert Messdaten von GitHub aus der JSON-Datei
+        # Importiert Messdaten von GitHub aus der JSON-Datei#
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
-
+        # Daten von GitHub abrufen
         try:
-            response = requests.get(url, headers=headers, timeout=5).json()
-        except Exception as e:
+            response = requests.get(url, headers=headers, timeout=5)
+            response.raise_for_status()
+            data_json = response.json()
+        except requests.RequestException as e:
             st.error(f"Fehler beim Zugriff auf GitHub: {e}")
             return
-
-        if "content" not in response:
-            msg = response.get("message", "Unbekannter Fehler beim Laden der Daten.")
-            st.info(f"GitHub-API-Fehler: {msg}")
+        # Prüfen ob Inhalt vorhanden
+        if "content" not in data_json:
+            msg = data_json.get("message", "Unbekannter Fehler beim Laden der Daten.")
+            st.warning(f"GitHub-API meldet: {msg}")
             return
-
+        # Inhalt dekodieren und JSON laden
         try:
-            content = base64.b64decode(response["content"]).decode("utf-8")
+            content = base64.b64decode(data_json["content"]).decode("utf-8")
             data = json.loads(content)
         except Exception as e:
             st.error(f"Fehler beim Dekodieren der GitHub-Daten: {e}")
             return
-
+        # neue Eintäge erstellen (wenn noch nicht vorhanden)
+        hinzugefuegte = 0
         for eintrag in data:
-            eintrag_korrigiert = {
-                'id': eintrag.get("ID"),
-                'datum': eintrag.get("Datum"),
-                'temperatur': eintrag.get("Temperatur"),
-                'niederschlag': eintrag.get("Niederschlag"),
-                'sonnenstunden': eintrag.get("Sonnenstunden"),
-                'quelle': eintrag.get("Quelle"),
-                'standort': eintrag.get("Standort")
-            }
-            wetter = WetterMessung(**eintrag_korrigiert)
-            if not self.existiert_eintrag(wetter.datum, wetter.standort):
-                self.hinzufuegen(wetter)
+            messung = WetterMessung(
+                id=eintrag.get("ID"),
+                datum=eintrag.get("Datum"),
+                temperatur=eintrag.get("Temperatur"),
+                niederschlag=eintrag.get("Niederschlag"),
+                sonnenstunden=eintrag.get("Sonnenstunden"),
+                quelle=eintrag.get("Quelle"),
+                standort=eintrag.get("Standort"),
+            )
+            if not self.existiert_eintrag(messung.datum, messung.standort):
+                self.hinzufuegen(messung)
+                hinzugefuegte += 1
 
-        st.info(f"Einträge von GitHub importiert.")
+        st.info(f"{hinzugefuegte} Einträge von GitHub importiert.")
 
     @staticmethod
     def load_github_data(debug=False):
-        # lädt Wetterdaten aus GitHub , für die lokale Version
+        # Lädt die Wetterdaten aus GitHub.
         def _load():
-            wd = WetterDaten()
-            wd.import_github_json()
+            wd = WetterAnalyse()  # Objekt erstellen
+            wd.import_github_json()  # Daten von Git Hub importieren
             return wd
 
         if debug:
             return _load()
         else:
+            # Daten mit Streamlit-Cache laden (TTL = 300 Sekunden)
             @st.cache_data(ttl=300)
             def cached_load():
                 return _load()
+
             return cached_load()
 
     def export_github_json(self, debug_mode=False):
+        """
+        Speichert die Wetterdaten auf GitHub als JSON-Datei.
+
+        Verwendet die GitHub-API, um die Datei zu aktualisieren. Jede Datei auf GitHub hat eine
+        eindeutige SHA (Secure Hash Algorithm), die die aktuelle Version identifiziert.
+        Die SHA wird benötigt, damit GitHub erkennt, welche Version der Datei überschrieben
+        werden soll, und um Konflikte zu vermeiden.
+
+        Funktionsweise:
+        1. Wandelt die Wetterdaten in JSON um.
+        2. Ruft die aktuelle SHA der Datei von GitHub ab.
+        3. Erstellt die Payload mit Message, Content, Branch und SHA.
+        4. Sendet die PUT-Anfrage an GitHub, um die Datei zu aktualisieren.
+        5. Gibt Erfolg oder Fehler auf der Streamlit-Oberfläche aus.
+        """
+
+        # Daten auf GitHub speichern, als JSON
         if not GITHUB_TOKEN:
             st.warning("Kein GitHub-Token gesetzt – Daten nicht gespeichert.")
             return
-
+        # Messungen in JSON umwandeln
         df = [m.als_dict() for m in self.messungen]
         json_data = json.dumps(df, indent=2)
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
 
-        # Prüfen ob Datei existiert
+        # Prüfen, ob Datei schon existiert, um SHA für Update zu erhalten
         url_get = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
-        r_get = requests.get(url_get, headers=headers)
-        sha = r_get.json()["sha"] if r_get.status_code == 200 else None
+        try:
+            r_get = requests.get(url_get, headers=headers)
+            r_get.raise_for_status()
+            sha = r_get.json().get(
+                "sha"
+            )  # eindeutiger Hash der Datei, nötig für ein Update auf GitHub
+        except requests.RequestException:
+            sha = None  #n
 
+        # Payload für GitHub PUT-Anfrage vorbereiten
         payload = {
             "message": f"Update Wetterdaten {datetime.datetime.now()}",
             "content": base64.b64encode(json_data.encode()).decode(),
-            "branch": GITHUB_BRANCH
+            "branch": GITHUB_BRANCH,
         }
+        # nur hinzufügen, wenn Datei schon existiert, damit GitHub weiß, dass wir updaten
         if sha:
             payload["sha"] = sha
 
         if debug_mode:
             st.text_area("🔍 GitHub-Payload", json.dumps(payload, indent=2), height=250)
 
-        url_put = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
-        r_put = requests.put(url_put, headers=headers, data=json.dumps(payload))
-        if r_put.status_code in [200, 201]:
+        ## Daten auf GitHub hochladen
+        try:
+            r_put = requests.put(
+                f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}",
+                headers=headers,
+                data=json.dumps(payload),
+            )
+            r_put.raise_for_status()
             st.success("Daten erfolgreich auf GitHub gespeichert!")
-        else:
-            st.error(f"Fehler beim Speichern: {r_put.text}")
+        except requests.RequestException as e:
+            st.error(f"Fehler beim Speichern auf GitHub: {e}")
+
 
 # Analyse & Diagramme
-
 class WetterAnalyse(WetterDaten):
-    def extremwerte(self, ort_filter="Alle"): pass
-    def jahresstatistik(self, ort_filter="Alle"): pass
-    def durchschnittstemperatur(self): pass
-    def gesamtniederschlag(self): pass
-    def gesamte_sonnenstunden(self): pass
-    def prognose_temperatur(self, tage=3): pass
-    def prognose_niederschlag(self, tage=3): pass
-    def plot_3tage_prognose(self, ort_filter="Alle"): pass
-    def plot_7tage_vergleich(self, ort_filter="Alle"): pass
-    def plot_monatsvergleich(self, ort_filter="Alle"): pass
+    #  heißester und kältister Tag
+    def extremwerte(self, ort_filter="Alle"):
+        df = self.als_dataframe()  # alle Messungen im DataFrame
+        if df.empty:
+            return None, None  # keine Messung vorhanden
+        if ort_filter != "Alle":  # nach Ort Filtern
+            df = df[df["Standort"] == ort_filter]
+        if df.empty:
+            return None, None  # nach Filter keine Daten
+        # Rückgabe max und min Temperatur
+        return df.loc[df["Temperatur"].idxmax()], df.loc[df["Temperatur"].idxmin()]
 
-# --------------------------
+    # Zeigt die Jahresstatistik an (Durchschnitt, Summe, Extremwerte)
+    def jahresstatistik(self, ort_filter="Alle"):
+        st.subheader("📈 Jahresstatistik")
+        df = self.als_dataframe()
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+        if df.empty:
+            st.info("Keine Daten vorhanden")
+            return
+        # Durchschnittswerte und Summen anzeigen
+        st.write(f"Durchschnittstemperatur: {df['Temperatur'].mean():.2f} °C")
+        st.write(f"Gesamtniederschlag: {df['Niederschlag'].sum():.2f} mm")
+        st.write(f"Gesamte Sonnenstunden: {df['Sonnenstunden'].sum():.2f} h")
+        # Extremwerte (heißester und kältester Tag)
+        max_tag, min_tag = self.extremwerte(ort_filter)
+        if max_tag is not None:
+            st.success(
+                f"Heißester Tag: {max_tag['Datum'].date()} mit {max_tag['Temperatur']}°C"
+            )
+            st.info(
+                f"Kältester Tag: {min_tag['Datum'].date()} mit {min_tag['Temperatur']}°C"
+            )
+
+    # berechnet Regenwahrscheinlichkeit
+    def regenwahrscheinlichkeit(self, tage=7, ort_filter="Alle"):
+        df = self.als_dataframe()
+        if df.empty:
+            return 0
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+        letzte_tage = df.sort_values("Datum").tail(tage)
+        regen_tage = letzte_tage[letzte_tage["Niederschlag"] > 0]  # Tage mit Regen
+        wahrscheinlichkeit = len(regen_tage) / tage * 100  # % Regen
+        return round(wahrscheinlichkeit, 1)
+
+    #
+
+    #  Prognose basierent auf den Mittelwert der letzten 7 Tage
+    def prognose_mittelwert(self, serie, tage=3):
+        mw = (
+            serie.tail(7).mean() if len(serie) >= 1 else 0
+        )  # Mittelwert der letzten 7 Einträge
+        return [round(mw, 1)] * tage
+
+    # Prognose basierend auf dem Trend der letzten 7 Tage
+    def prognose_trend(self, serie, tage=3):
+        data = serie.tail(7).values  # letzte 7 Werte
+        if len(data) >= 2:
+            trend = np.poly1d(
+                np.polyfit(np.arange(len(data)), data, 1)
+            )  # lineare Trendlinie
+            return [
+                round(trend(len(data) + i), 1) for i in range(1, tage + 1)
+            ]  # # Trend fortsetzen
+        return self.prognose_mittelwert(serie, tage)
+
+    # Prognose mit zufälliger Abweichung
+    def prognose_ueberraschung(self, serie, tage=3):
+        mw = (
+            serie.tail(7).mean() if len(serie) >= 1 else 0
+        )  # Mittelwert der letzten 7 Werte
+        return [
+            round(mw + random.uniform(-3, 3), 1) for _ in range(tage)
+        ]  ## kleine Zufallsschwankung
+
+    # Prognosen für Temperatur & Niederschlag (basierend auf Mittelwert)
+    def prognose_temperatur(self, tage=3):
+        df = self.als_dataframe()
+        if df.empty:
+            return []
+        return self.prognose_mittelwert(df["Temperatur"], tage)
+
+    def prognose_niederschlag(self, tage=3):
+        df = self.als_dataframe()
+        if df.empty:
+            return []
+        return self.prognose_mittelwert(df["Niederschlag"], tage)
+
+    # Diagramme für Temperatur und Niederschlag (3 Tage)
+    def plot_3tage_prognose(self, ort_filter="Alle"):
+        st.subheader("🌤️ 3-Tage Prognose")
+        df = self.als_dataframe()
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+        if df.empty:
+            st.info("Keine Daten vorhanden – Prognose kann nicht erstellt werden.")
+            return
+
+        # Methode auswählen: Mittelwert, Trend oder Überraschung
+        methode = st.selectbox(
+            "Prognose-Methode wählen:",
+            ["Mittelwert-Prognose", "Trendbasierte Prognose", "Überraschungsprognose"],
+        )
+
+        tage = 3
+        labels = [
+            (datetime.datetime.now() + datetime.timedelta(days=i)).strftime("%d-%m")
+            for i in range(1, tage + 1)
+        ]
+
+        # Prognosen erstellen
+        if methode == "Mittelwert-Prognose":
+            temp = self.prognose_mittelwert(df["Temperatur"], tage)
+            nied = self.prognose_mittelwert(df["Niederschlag"], tage)
+        elif methode == "Trendbasierte Prognose":
+            temp = self.prognose_trend(df["Temperatur"], tage)
+            nied = self.prognose_trend(df["Niederschlag"], tage)
+        else:  # Überraschungsprognose
+            temp = self.prognose_ueberraschung(df["Temperatur"], tage)
+            nied = self.prognose_ueberraschung(df["Niederschlag"], tage)
+
+        # Diagramm erstellen
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
+        ax1.plot(labels, temp, marker="o", color="red")  # Temperaturkurve
+        ax1.set_ylabel("°C")
+        ax1.set_title(f"Temperaturprognose – {methode}")
+
+        ax2.bar(labels, nied, color="blue", alpha=0.5)  # Niederschlagsbalken
+        ax2.set_ylabel("mm")
+        ax2.set_title(f"Niederschlagsprognose – {methode}")
+
+        plt.tight_layout()
+        st.pyplot(fig)  # Diagramm in Streamlit anzeigen
+
+    # Vergleich der letzten 7 Tage ( Niederschlag und Sonnenstunden)
+    def plot_7tage_vergleich(self, ort_filter="Alle"):
+        st.subheader("📊 Letzte 7 Tage – Niederschlag & Sonnenstunden")
+        df = self.als_dataframe()
+        if df.empty:
+            st.info("Keine Daten vorhanden.")
+            return
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+            if df.empty:
+                st.info("Keine Daten für diesen Ort.")
+                return
+
+        heute = pd.Timestamp(datetime.datetime.now())
+        letzte7 = [
+            heute - pd.Timedelta(days=i) for i in range(6, -1, -1)
+        ]  # letzte 7 Tage
+        nied, sonne = [], []
+        for tag in letzte7:
+            row = df[df["Datum"].dt.date == tag.date()]
+            nied.append(row["Niederschlag"].sum() if not row.empty else 0)
+            sonne.append(row["Sonnenstunden"].sum() if not row.empty else 0)
+
+        # Prüfen, ob überhaupt Werte vorhanden sind
+        if sum(nied) == 0 and sum(sonne) == 0:  # Prüfen ob Daten vorhanden
+            st.info("Keine Messwerte für die letzten 7 Tage.")
+            return
+
+        labels = [tag.strftime("%d-%m") for tag in letzte7]
+        x = np.arange(len(labels))
+        width = 0.35
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+        ax1.bar(x, nied, width, color="blue")  # Niederschlagsbalken
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(labels)
+        ax1.set_ylabel("mm")
+        ax1.set_title("Niederschlag letzte 7 Tage")
+        ax2.bar(x, sonne, width, color="orange")  # Sonnenstundenbalken
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(labels)
+        ax2.set_ylabel("h")
+        ax2.set_title("Sonnenstunden letzte 7 Tage")
+        plt.tight_layout()
+        st.pyplot(fig)
+
+    # Vergleich der Monate (Niederschlag und Sonnenstuunden)
+    def plot_monatsvergleich(self, ort_filter="Alle"):
+        st.subheader("📊 Monatsvergleich – Niederschlag & Sonnenstunden")
+        df = self.als_dataframe()
+        if df.empty:
+            st.info("Keine Daten vorhanden.")
+            return
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+            if df.empty:
+                st.info("Keine Daten für diesen Ort.")
+                return
+
+        # Jahr & Monat aus Datum extrahieren
+        df["Jahr"] = df["Datum"].dt.year
+        df["Monat"] = df["Datum"].dt.month
+        aktuelles_jahr = datetime.datetime.now().year
+        letztes_jahr = aktuelles_jahr - 1
+
+        # Summen für aktuelles Jahr
+        nied_sum = (
+            df[df["Jahr"] == aktuelles_jahr]
+            .groupby("Monat")["Niederschlag"]
+            .sum()
+            .reindex(range(1, 13), fill_value=0)
+        )
+        sonne_sum = (
+            df[df["Jahr"] == aktuelles_jahr]
+            .groupby("Monat")["Sonnenstunden"]
+            .sum()
+            .reindex(range(1, 13), fill_value=0)
+        )
+        # Summen für letztes Jahr
+        nied_letztes = (
+            df[df["Jahr"] == letztes_jahr]
+            .groupby("Monat")["Niederschlag"]
+            .sum()
+            .reindex(range(1, 13), fill_value=0)
+        )
+        sonne_letztes = (
+            df[df["Jahr"] == letztes_jahr]
+            .groupby("Monat")["Sonnenstunden"]
+            .sum()
+            .reindex(range(1, 13), fill_value=0)
+        )
+
+        # Prüfen, ob überhaupt Werte vorhanden sind
+        if (
+            nied_sum.sum() == 0
+            and sonne_sum.sum() == 0
+            and nied_letztes.sum() == 0
+            and sonne_letztes.sum() == 0
+        ):
+            st.info("Keine Messwerte für die Monatsvergleiche.")
+            return
+
+        monate = [
+            "Jan",
+            "Feb",
+            "Mär",
+            "Apr",
+            "Mai",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Okt",
+            "Nov",
+            "Dez",
+        ]
+        # Niederschlagsvergleich: aktuell vs letztes Jahr
+        x = np.arange(len(monate))
+        width = 0.35
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+        ax1.bar(
+            x - width / 2,
+            nied_sum.values,
+            width,
+            label=f"{aktuelles_jahr}",
+            color="blue",
+        )
+        ax1.bar(
+            x + width / 2,
+            nied_letztes.values,
+            width,
+            label=f"{letztes_jahr}",
+            color="orange",
+            alpha=0.7,
+        )
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(monate)
+        ax1.set_ylabel("mm")
+        ax1.set_title("Monatlicher Niederschlag")
+        ax1.legend()
+        ax2.bar(
+            x - width / 2,
+            sonne_sum.values,
+            width,
+            label=f"{aktuelles_jahr}",
+            color="yellow",
+        )
+        # Sonnenstundenvergleich: aktuell vs letztes Jahr
+        ax2.bar(
+            x + width / 2,
+            sonne_letztes.values,
+            width,
+            label=f"{letztes_jahr}",
+            color="green",
+            alpha=0.7,
+        )
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(monate)
+        ax2.set_ylabel("h")
+        ax2.set_title("Monatliche Sonnenstunden")
+        ax2.legend()
+        plt.tight_layout()
+        st.pyplot(fig)
+
+
+# zeigt Debug - Infos an
+def dev_mode_dashboard(wd, live_data=None):
+    """
+    Zeigt alle Debug-Infos im Dev-Mode an.
+    - wd: WetterDaten/WetterAnalyse Objekt
+    - live_data: optional dict mit Live-API Rohdaten
+    """
+    if not st.session_state.get("dev_mode", False):
+        return  # Nur anzeigen, wenn Dev-Mode aktiv
+
+    st.markdown("## 🔍 Dev-Mode Übersicht")
+
+    # GitHub-Daten (alle geladenen)
+    st.subheader("GitHub: geladene Messungen")
+    st.text_area("GitHub-Daten", str([m.als_dict() for m in wd.messungen]), height=200)
+
+    # Live-API Rohdaten + Sonnenstunden
+    if live_data:
+        st.subheader("Live-Daten API Rohwerte")
+        st.json(live_data)
+
+        try:
+            sunrise_ts = live_data["sys"]["sunrise"]
+            sunset_ts = live_data["sys"]["sunset"]
+            clouds = live_data.get("clouds", {}).get("all", 100)
+            sunrise = datetime.datetime.fromtimestamp(sunrise_ts)
+            sunset = datetime.datetime.fromtimestamp(sunset_ts)
+            tageslaenge = (sunset - sunrise).total_seconds() / 3600
+            sonnenstunden = round((1 - clouds / 100) * tageslaenge, 1)
+
+            # Ergebnisse anzeigen
+            st.write(f"- Sonnenaufgang: {sunrise}")
+            st.write(f"- Sonnenuntergang: {sunset}")
+            st.write(f"- Tageslänge: {tageslaenge:.2f} h")
+            st.write(f"- Bewölkung: {clouds}%")
+            st.write(f"- Berechnete Sonnenstunden: {sonnenstunden} h")
+        except Exception as e:
+            st.error(f"Fehler bei Sonnenstunden-Berechnung: {e}")
+
+    # Simulationsdaten
+    st.subheader("Simulations-Daten")
+    sim_data = [m.als_dict() for m in wd.messungen if m.quelle == "simuliert"]
+    if sim_data:
+        st.dataframe(sim_data)
+    else:
+        st.info("Keine Simulations-Daten vorhanden")
+
+    # Live-Messungen Übersicht
+    st.subheader("Live-Messungen")
+    live_entries = [m.als_dict() for m in wd.messungen if m.quelle == "live"]
+    if live_entries:
+        st.dataframe(live_entries)
+    else:
+        st.info("Keine Live-Daten vorhanden")
+
+
 # App-Funktionen
-# --------------------------
 def manuelle_eingabe(wd):
     st.subheader("Manuelle Eingabe")
+    # Eingabefelder für Datum, Ort, Temperatur, Niederschlag, Sonnenstunden
     datum = st.date_input("Datum")
     standort = st.text_input("Ort")
     temp_min = st.number_input("Min °C", value=15.0)
     temp_max = st.number_input("Max °C", value=25.0)
-    temperatur = round((temp_min + temp_max)/2,1)
+    temperatur = round((temp_min + temp_max) / 2, 1)
     nied = st.number_input("Niederschlag (mm)", value=0.0)
     sonne = st.number_input("Sonnenstunden", value=6.0)
 
+    # Button zum Hinzufügen der Messung
     if st.button("Hinzufügen"):
         datum_dt = datetime.datetime.combine(datum, datetime.datetime.now().time())
+
+        # Prüfen, ob Eintrag für Datum + Standort schon existiert
         if wd.existiert_eintrag(datum_dt, standort):
-            st.warning(f"Für {standort} am {datum_dt.date()} existiert bereits ein Eintrag!")
+            st.warning(
+                f"Für {standort} am {datum_dt.date()} existiert bereits ein Eintrag!"
+            )
         else:
-            wd.hinzufuegen(WetterMessung(datum_dt, temperatur, nied, sonne, quelle=Quelle.MANUELL, standort=standort))
+            # Neue Messung erstellen und speichern
+            wd.hinzufuegen(
+                WetterMessung(
+                    datum_dt,
+                    temperatur,
+                    nied,
+                    sonne,
+                    quelle=Quelle.MANUELL,
+                    standort=standort,
+                )
+            )
             wd.export_github_json()
             st.success(f"{standort} am {datum_dt.date()} hinzugefügt!")
 
+
 def wettersimulation(wd):
     st.subheader("Simulation")
-    ort = st.text_input("Ort", "Musterstadt")
+    ort = st.text_input("Ort")
+    # Anzahl der Tage für die Simulation auswählen , 1-30, 7-Standart
     tage = st.number_input("Tage", 1, 30, 7)
     if st.button("Simulieren"):
         heute = datetime.datetime.now()
+        # Für jeden Tag eine zufällige Messung erzeugen
         for i in range(tage):
+            # Datum rückwärts berechnen
             datum = heute - datetime.timedelta(days=i)
-            wd.hinzufuegen(WetterMessung(
-                datum,
-                round(random.uniform(15,30),1),
-                round(random.uniform(0,10),1),
-                round(random.uniform(0,12),1),
-                quelle=Quelle.SIMULIERT,
-                standort=ort
-            ))
+            wd.hinzufuegen(
+                WetterMessung(
+                    datum,
+                    round(random.uniform(15, 30), 1),  # Temperatur
+                    round(random.uniform(0, 10), 1),  # Niederschlag
+                    round(random.uniform(0, 12), 1),  # Sonnenstunden
+                    quelle=Quelle.SIMULIERT,
+                    standort=ort,
+                )
+            )
+        # Alle simulierten Daten auf GitHub speichern
         wd.export_github_json()
-        st.success(f"{tage} Tage simuliert für {ort}!")
+        st.success(f"{tage} Tage simuliert!")
+
 
 def live_wetterdaten(wd, ort):
-    # OWM_API_KEY aus Streamlit Secrets holen
-    OWM_API_KEY = st.secrets["Legacy91988"]["OWM_API_KEY"]
+    """
+    Holt aktuelle Wetterdaten für einen Ort:
+    - Temperatur, Niederschlag, Sonnenstunden
+    - Speichert die Messung in wd
+    - Gibt die Rohdaten der API zurück
+    """
 
+    # API-Key aus Secrets
+    OWM_API_KEY = st.secrets["Legacy91988"]["OWM_API_KEY"]
     if not OWM_API_KEY:
         st.error("OpenWeatherMap API-Key ist nicht gesetzt!")
-        return
-
+        return None
+    # API-Request
     url = f"http://api.openweathermap.org/data/2.5/weather?q={ort}&appid={OWM_API_KEY}&units=metric&lang=de"
     try:
         data = requests.get(url, timeout=5).json()
     except Exception as e:
         st.error(f"Fehler beim Abrufen der Live-Daten: {e}")
-        return
+        return None
 
+    # Werte aus JSON extrahieren
     temp = data.get("main", {}).get("temp")
     niederschlag = data.get("rain", {}).get("1h", 0)
 
     if temp is None:
         msg = data.get("message", "Keine Temperaturdaten erhalten.")
         st.error(f"OpenWeatherMap-Fehler: {msg}")
-        return
+        return data
 
+    # Sonnenstunden berechnen
+    try:
+        sunrise_ts = data["sys"]["sunrise"]
+        sunset_ts = data["sys"]["sunset"]
+        clouds = data.get("clouds", {}).get("all", 100)  # Bewölkung in %
+        sunrise = datetime.datetime.fromtimestamp(sunrise_ts)
+        sunset = datetime.datetime.fromtimestamp(sunset_ts)
+        tageslaenge = (sunset - sunrise).total_seconds() / 3600  # Stunden
+        sonnenstunden = round((1 - clouds / 100) * tageslaenge, 1)
+    except Exception as e:
+        st.warning(f"Sonnenstunden konnten nicht berechnet werden: {e}")
+        sonnenstunden = 0
+
+    # Messung erstellen
     messung = WetterMessung(
         datum=datetime.datetime.now(),
         temperatur=temp,
         niederschlag=niederschlag,
-        sonnenstunden=0,
+        sonnenstunden=sonnenstunden,
         quelle=Quelle.LIVE,
-        standort=ort
+        standort=ort,
     )
+    # Prüfen, ob für heute schon ein Eintrag existiert
     if not wd.existiert_eintrag(messung.datum, ort):
         wd.hinzufuegen(messung)
-        st.success(f"Live-Daten für {ort} hinzugefügt: {temp}°C, {niederschlag}mm")
+        st.success(
+            f"Live-Daten für {ort} hinzugefügt: {temp}°C, {niederschlag}mm, {sonnenstunden}h Sonne"
+        )
     else:
         st.info(f"Für {ort} existiert bereits ein Eintrag für heute.")
 
-def download_wetterdaten_csv(wd): pass
+    # Rohdaten für Dev-Mode zurückgeben
+    return data
 
+
+# Funktion zum Herunterladen aller Wetterdaten als CSV
+def download_wetterdaten_csv(wd):
+    st.subheader("Wetterdaten als CSV herunterladen")
+    # Alle Messungen als DataFrame
+    df = wd.als_dataframe()
+    if df.empty:
+        st.info("Keine Daten vorhanden zum Download")
+        return
+    # DataFrame in Csv Format umwandeln
+    csv_data = df.to_csv(index=False)
+    # Download-Button in Streamlit anzeigen
+    st.download_button(
+        label="Download als CSV",
+        data=csv_data,
+        file_name="wetterdaten.csv",
+        mime="text/csv",
+    )
+
+
+# Funktion: Messungen anzeigen & (im Dev-Mode) löschen
 def anzeigen_und_loeschen(wd):
-    st.subheader("Messungen anzeigen & löschen")
+    st.subheader(" Messungen anzeigen ")
+    # Alle Messungen als DataFrame
     df = wd.als_dataframe()
     if df.empty:
         st.info("Keine Daten vorhanden.")
         return
 
-    orte = df['Standort'].unique()
+    # Filter nach Ort
+    orte = df["Standort"].unique()
     ort_filter = st.selectbox("Ort auswählen:", np.append("Alle", orte))
     if ort_filter != "Alle":
-        df = df[df['Standort'] == ort_filter]
+        df = df[df["Standort"] == ort_filter]
 
-    st.dataframe(df[['ID','Standort','Datum','Temperatur','Niederschlag','Sonnenstunden']])
+    # Tabelle anzeigen
+    st.dataframe(
+        df[
+            [
+                "ID",
+                "Standort",
+                "Datum",
+                "Temperatur",
+                "Niederschlag",
+                "Sonnenstunden",
+                "Quelle",
+            ]
+        ].sort_values("Datum", ascending=False)
+    )
 
-    df_sorted = df.sort_values('Datum', ascending=False)
-    eintraege = [
-        f"{row['ID']} | {row['Standort']} | {row['Datum'].strftime('%d.%m.%Y')} | {row['Temperatur']}°C | {row['Niederschlag']}mm | {row['Sonnenstunden']}h"
-        for _, row in df_sorted.iterrows()
-    ]
+    # Dev-Mode: Einträge löschen
+    if st.session_state.get("dev_mode", False):
+        st.markdown("###  Einträge löschen (Dev-Mode)")
+        # Liste der Einträge vorbereiten
+        df_sorted = df.sort_values("Datum", ascending=False)
+        eintraege = [
+            f"{row['ID']} | {row['Standort']} | {row['Datum'].strftime('%d.%m.%Y')} | "
+            f"{row['Temperatur']}°C | {row['Niederschlag']}mm | {row['Sonnenstunden']}h | {row['Quelle']}"
+            for _, row in df_sorted.iterrows()
+        ]
+        # Auswahl per Multiselect
+        if eintraege:
+            auswahl = st.multiselect(
+                "Einträge zum Löschen auswählen:",
+                options=eintraege,
+                key="dev_delete_multiselect",  #  eindeutiger Key
+            )
+            # Löschen bestätigen
+            if auswahl and st.button("Löschen", key="dev_delete_button"):
+                for eintrag in auswahl:
+                    eintrag_id = eintrag.split(" | ")[0]
+                    wd.loeschen(eintrag_id)
+                wd.export_github_json()
+                st.success(f"{len(auswahl)} Messung(en) gelöscht!")
+                st.experimental_rerun()
 
-    if eintraege:
-        auswahl = st.multiselect("Einträge zum Löschen auswählen:", options=eintraege)
-        if auswahl and st.button("Löschen"):
-            for eintrag in auswahl:
-                eintrag_id = eintrag.split(" | ")[0]
-                wd.loeschen(eintrag_id)
-            wd.export_github_json()
-            st.success(f"{len(auswahl)} Messung(en) gelöscht!")
-            st.rerun()
 
 # Haupt-App
 def main():
     st.title("🌤️ Wetterweiser")
-    st.info("Dateneingabe funktioniert – weitere Funktionen folgen")
 
-    wd = WetterAnalyse()
-    wd.import_github_json()
+    # Dev-Mode Initialisierung
+    if "dev_mode" not in st.session_state:
+        st.session_state.dev_mode = False
+    # Entwickler-Passwort abfragen
+    eingabe = st.sidebar.text_input("Entwickler-Passwort", type="password")
+    ist_entwickler = eingabe == st.secrets["dev"]["debug_password"]
+    # Dev-Mode aktivieren, falls Passwort korrekt
+    if ist_entwickler:
+        st.session_state.dev_mode = st.sidebar.checkbox(
+            "🔍 Debug-Modus aktiv", value=st.session_state.dev_mode
+        )
+        if st.session_state.dev_mode:
+            st.sidebar.success("🔍 Dev-Mode aktiv")
 
+    # Wetterdaten laden
+    wd = WetterDaten.load_github_data(debug=st.session_state.dev_mode)
+
+    # Dev-Mode Dashboard initial anzeigen
+    live_data = None
+    dev_mode_dashboard(wd, live_data=live_data)
+
+    # Daten hinzufügen
     st.subheader("Daten hinzufügen")
     modus = st.radio("Modus", ("Manuelle Eingabe", "Simulation", "Live-Abfrage"))
+
     if modus == "Manuelle Eingabe":
         manuelle_eingabe(wd)
     elif modus == "Simulation":
@@ -312,10 +831,35 @@ def main():
     elif modus == "Live-Abfrage":
         ort = st.text_input("Ort für Live-Abfrage", "Musterstadt")
         if st.button("Live-Daten abrufen"):
-            live_wetterdaten(wd, ort)
+            live_data = live_wetterdaten(wd, ort)
+            dev_mode_dashboard(
+                wd, live_data=live_data
+            )  # Dev-Infos nach Live-Daten aktualisieren
 
-    download_wetterdaten_csv(wd)
+        # CSV-Download
+        download_wetterdaten_csv(wd)
+
+    # Diagramme und Statistiken
+    df = wd.als_dataframe()
+    orte = df["Standort"].unique() if not df.empty else []
+    ort_filter = st.selectbox(
+        "Diagramm-Ort auswählen",
+        options=np.append("Alle", orte) if len(orte) > 0 else ["Alle"],
+    )
+
+    wd.plot_3tage_prognose(ort_filter)
+    regen_wahrscheinlichkeit = wd.regenwahrscheinlichkeit(tage=7, ort_filter=ort_filter)
+    st.write(
+        f"🌧️ Regenwahrscheinlichkeit in den letzten 7 Tagen: {regen_wahrscheinlichkeit}%"
+    )
+    wd.plot_7tage_vergleich(ort_filter)
+    wd.plot_monatsvergleich(ort_filter)
+    wd.jahresstatistik(ort_filter)
+
+    # Messungen anzeigen & ggf. löschen
     anzeigen_und_loeschen(wd)
 
+
+# Programm starten
 if __name__ == "__main__":
     main()
