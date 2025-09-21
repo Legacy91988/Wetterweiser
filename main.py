@@ -14,6 +14,7 @@ import streamlit as st  # Web-App-Oberfläche
 
 # Quelle der Wetterdaten (Enum für bessere Übersicht und Sicherheit)
 
+
 class Quelle(Enum):
     MANUELL = "manuell"  # von Hand eingeben
     SIMULIERT = "simuliert"  # automatisch generierte zufalls Daten
@@ -205,7 +206,7 @@ class WetterDaten:
                 "sha"
             )  # eindeutiger Hash der Datei, nötig für ein Update auf GitHub
         except requests.RequestException:
-            sha = None  #n
+            sha = None  # n
 
         # Payload für GitHub PUT-Anfrage vorbereiten
         payload = {
@@ -292,53 +293,75 @@ class WetterAnalyse(WetterDaten):
         return [round(mw, 1)] * tage
 
     # Prognose basierend auf dem Trend der letzten 7 Tage
-    def prognose_trend(self, serie, tage=3):
+    def prognose_trend(self, serie, tage=3, is_precipitation=False):
         data = serie.tail(7).values  # letzte 7 Werte
         if len(data) >= 2:
             trend = np.poly1d(
                 np.polyfit(np.arange(len(data)), data, 1)
             )  # lineare Trendlinie
-            return [
-                round(trend(len(data) + i), 1) for i in range(1, tage + 1)
-            ]  # # Trend fortsetzen
+            werte = [round(trend(len(data) + i), 1) for i in range(1, tage + 1)]
+            # Niederschlag darf nicht negativ sein
+            if is_precipitation:
+                werte = [max(0, w) for w in werte]
+            return werte
         return self.prognose_mittelwert(serie, tage)
 
     # Prognose mit zufälliger Abweichung
-    def prognose_ueberraschung(self, serie, tage=3):
+    def prognose_ueberraschung(self, serie, tage=3, is_precipitation=False):
         mw = (
             serie.tail(7).mean() if len(serie) >= 1 else 0
         )  # Mittelwert der letzten 7 Werte
-        return [
+        werte = [
             round(mw + random.uniform(-3, 3), 1) for _ in range(tage)
-        ]  ## kleine Zufallsschwankung
+        ]  # kleine Zufallsschwankung
+        if is_precipitation:
+            werte = [max(0, w) for w in werte]
+        return werte
 
     # Prognosen für Temperatur & Niederschlag (basierend auf Mittelwert)
     def prognose_temperatur(self, tage=3):
         df = self.als_dataframe()
         if df.empty:
             return []
-        return self.prognose_mittelwert(df["Temperatur"], tage)
+        return self.prognose_trend(df["Temperatur"], tage)
 
     def prognose_niederschlag(self, tage=3):
         df = self.als_dataframe()
         if df.empty:
             return []
-        return self.prognose_mittelwert(df["Niederschlag"], tage)
+        return self.prognose_trend(df["Niederschlag"], tage, is_precipitation=True)
 
     # Diagramme für Temperatur und Niederschlag (3 Tage)
     def plot_3tage_prognose(self, ort_filter="Alle"):
         st.subheader("🌤️ 3-Tage Prognose")
         df = self.als_dataframe()
-        if ort_filter != "Alle":
-            df = df[df["Standort"] == ort_filter]
+
         if df.empty:
             st.info("Keine Daten vorhanden – Prognose kann nicht erstellt werden.")
             return
 
-        # Methode auswählen: Mittelwert, Trend oder Überraschung
+        # Filter nach Ort
+        if ort_filter != "Alle":
+            df = df[df["Standort"] == ort_filter]
+            if df.empty:
+                st.info("Keine Daten für diesen Ort.")
+                return
+
+        # Filter nach Quelle
+        quelle_filter = st.selectbox(
+            "Quelle auswählen:", ["Alle", "manuell", "simuliert", "live"]
+        )
+        if quelle_filter != "Alle":
+            df = df[df["Quelle"] == quelle_filter]
+            if df.empty:
+                st.info(f"Keine Daten für Quelle '{quelle_filter}'.")
+                return
+
+        # Prognose-Methode auswählen
         methode = st.selectbox(
             "Prognose-Methode wählen:",
             ["Mittelwert-Prognose", "Trendbasierte Prognose", "Überraschungsprognose"],
+            key="prognose_methode",
         )
 
         tage = 3
@@ -360,16 +383,16 @@ class WetterAnalyse(WetterDaten):
 
         # Diagramm erstellen
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
-        ax1.plot(labels, temp, marker="o", color="red")  # Temperaturkurve
+        ax1.plot(labels, temp, marker="o", color="red")
         ax1.set_ylabel("°C")
         ax1.set_title(f"Temperaturprognose – {methode}")
 
-        ax2.bar(labels, nied, color="blue", alpha=0.5)  # Niederschlagsbalken
+        ax2.bar(labels, nied, color="blue", alpha=0.5)
         ax2.set_ylabel("mm")
         ax2.set_title(f"Niederschlagsprognose – {methode}")
 
         plt.tight_layout()
-        st.pyplot(fig)  # Diagramm in Streamlit anzeigen
+        st.pyplot(fig)
 
     # Vergleich der letzten 7 Tage ( Niederschlag und Sonnenstunden)
     def plot_7tage_vergleich(self, ort_filter="Alle"):
@@ -378,24 +401,35 @@ class WetterAnalyse(WetterDaten):
         if df.empty:
             st.info("Keine Daten vorhanden.")
             return
+
+        # Filter nach Ort
         if ort_filter != "Alle":
             df = df[df["Standort"] == ort_filter]
             if df.empty:
                 st.info("Keine Daten für diesen Ort.")
                 return
 
+        # Filter nach Quelle
+        quelle_filter = st.selectbox(
+            "Quelle auswählen:",
+            ["Alle", "manuell", "simuliert", "live"],
+            key="quelle_7tage",
+        )
+        if quelle_filter != "Alle":
+            df = df[df["Quelle"] == quelle_filter]
+            if df.empty:
+                st.info(f"Keine Daten für Quelle '{quelle_filter}'.")
+                return
+
         heute = pd.Timestamp(datetime.datetime.now())
-        letzte7 = [
-            heute - pd.Timedelta(days=i) for i in range(6, -1, -1)
-        ]  # letzte 7 Tage
+        letzte7 = [heute - pd.Timedelta(days=i) for i in range(6, -1, -1)]
         nied, sonne = [], []
         for tag in letzte7:
             row = df[df["Datum"].dt.date == tag.date()]
             nied.append(row["Niederschlag"].sum() if not row.empty else 0)
             sonne.append(row["Sonnenstunden"].sum() if not row.empty else 0)
 
-        # Prüfen, ob überhaupt Werte vorhanden sind
-        if sum(nied) == 0 and sum(sonne) == 0:  # Prüfen ob Daten vorhanden
+        if sum(nied) == 0 and sum(sonne) == 0:
             st.info("Keine Messwerte für die letzten 7 Tage.")
             return
 
@@ -403,16 +437,18 @@ class WetterAnalyse(WetterDaten):
         x = np.arange(len(labels))
         width = 0.35
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
-        ax1.bar(x, nied, width, color="blue")  # Niederschlagsbalken
+        ax1.bar(x, nied, width, color="blue")
         ax1.set_xticks(x)
         ax1.set_xticklabels(labels)
         ax1.set_ylabel("mm")
         ax1.set_title("Niederschlag letzte 7 Tage")
-        ax2.bar(x, sonne, width, color="orange")  # Sonnenstundenbalken
+
+        ax2.bar(x, sonne, width, color="orange")
         ax2.set_xticks(x)
         ax2.set_xticklabels(labels)
         ax2.set_ylabel("h")
         ax2.set_title("Sonnenstunden letzte 7 Tage")
+
         plt.tight_layout()
         st.pyplot(fig)
 
@@ -423,10 +459,24 @@ class WetterAnalyse(WetterDaten):
         if df.empty:
             st.info("Keine Daten vorhanden.")
             return
+
+        # Filter nach Ort
         if ort_filter != "Alle":
             df = df[df["Standort"] == ort_filter]
             if df.empty:
                 st.info("Keine Daten für diesen Ort.")
+                return
+
+        # Filter nach Quelle (Alle, manuell, simuliert, live)
+        quelle_filter = st.selectbox(
+            "Quelle auswählen:",
+            ["Alle", "manuell", "simuliert", "live"],
+            key="quelle_monatsvergleich",
+        )
+        if quelle_filter != "Alle":
+            df = df[df["Quelle"] == quelle_filter]
+            if df.empty:
+                st.info(f"Keine Daten für Quelle '{quelle_filter}'.")
                 return
 
         # Jahr & Monat aus Datum extrahieren
@@ -448,6 +498,7 @@ class WetterAnalyse(WetterDaten):
             .sum()
             .reindex(range(1, 13), fill_value=0)
         )
+
         # Summen für letztes Jahr
         nied_letztes = (
             df[df["Jahr"] == letztes_jahr]
@@ -486,10 +537,12 @@ class WetterAnalyse(WetterDaten):
             "Nov",
             "Dez",
         ]
+
         # Niederschlagsvergleich: aktuell vs letztes Jahr
         x = np.arange(len(monate))
         width = 0.35
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
         ax1.bar(
             x - width / 2,
             nied_sum.values,
@@ -510,6 +563,8 @@ class WetterAnalyse(WetterDaten):
         ax1.set_ylabel("mm")
         ax1.set_title("Monatlicher Niederschlag")
         ax1.legend()
+
+        # Sonnenstundenvergleich: aktuell vs letztes Jahr
         ax2.bar(
             x - width / 2,
             sonne_sum.values,
@@ -517,7 +572,6 @@ class WetterAnalyse(WetterDaten):
             label=f"{aktuelles_jahr}",
             color="yellow",
         )
-        # Sonnenstundenvergleich: aktuell vs letztes Jahr
         ax2.bar(
             x + width / 2,
             sonne_letztes.values,
@@ -531,6 +585,7 @@ class WetterAnalyse(WetterDaten):
         ax2.set_ylabel("h")
         ax2.set_title("Monatliche Sonnenstunden")
         ax2.legend()
+
         plt.tight_layout()
         st.pyplot(fig)
 
@@ -592,40 +647,65 @@ def dev_mode_dashboard(wd, live_data=None):
 
 
 # App-Funktionen
+# Manuelle Eingabe mehrerer Wetterdaten (Tabelle)
 def manuelle_eingabe(wd):
-    st.subheader("Manuelle Eingabe")
-    # Eingabefelder für Datum, Ort, Temperatur, Niederschlag, Sonnenstunden
-    datum = st.date_input("Datum")
-    standort = st.text_input("Ort")
-    temp_min = st.number_input("Min °C", value=15.0)
-    temp_max = st.number_input("Max °C", value=25.0)
-    temperatur = round((temp_min + temp_max) / 2, 1)
-    nied = st.number_input("Niederschlag (mm)", value=0.0)
-    sonne = st.number_input("Sonnenstunden", value=6.0)
+    st.subheader("Manuelle Wetterdaten eingeben (mehrere Tage)")
 
-    # Button zum Hinzufügen der Messung
-    if st.button("Hinzufügen"):
-        datum_dt = datetime.datetime.combine(datum, datetime.datetime.now().time())
+    # Vorlage für die Eingabetabelle
+    df_input = pd.DataFrame(
+        {
+            "Datum": [datetime.datetime.now().date()],
+            "Temp_min": [15.0],
+            "Temp_max": [25.0],
+            "Niederschlag": [0.0],
+            "Sonnenstunden": [6.0],
+            "Standort": [""],
+        }
+    )
 
-        # Prüfen, ob Eintrag für Datum + Standort schon existiert
-        if wd.existiert_eintrag(datum_dt, standort):
-            st.warning(
-                f"Für {standort} am {datum_dt.date()} existiert bereits ein Eintrag!"
-            )
-        else:
-            # Neue Messung erstellen und speichern
-            wd.hinzufuegen(
-                WetterMessung(
-                    datum_dt,
-                    temperatur,
-                    nied,
-                    sonne,
-                    quelle=Quelle.MANUELL,
-                    standort=standort,
+    # Dynamische Tabelle, in der mehrere Zeilen hinzugefügt werden können
+    edited_df = st.data_editor(df_input, num_rows="dynamic", key="manuelle_eingabe")
+
+    if st.button("Speichern"):
+        hinzugefuegt = 0
+        uebersprungen = 0
+
+        for _, row in edited_df.iterrows():
+            try:
+                datum_dt = pd.to_datetime(row["Datum"])
+                niederschlag = float(row["Niederschlag"])
+                sonnenstunden = float(row["Sonnenstunden"])
+                standort = str(row["Standort"]).strip()
+
+                # Mittelwert aus Min/Max Temperatur berechnen
+                temperatur = round(
+                    (float(row["Temp_min"]) + float(row["Temp_max"])) / 2, 1
                 )
-            )
+
+                # prüfen, ob für diesen Tag & Standort schon ein Eintrag existiert
+                if not wd.existiert_eintrag(datum_dt, standort):
+                    wd.hinzufuegen(
+                        WetterMessung(
+                            datum=datum_dt,
+                            temperatur=temperatur,
+                            niederschlag=niederschlag,
+                            sonnenstunden=sonnenstunden,
+                            standort=standort,
+                            quelle="manuell",
+                        )
+                    )
+                    hinzugefuegt += 1
+                else:
+                    uebersprungen += 1
+            except Exception as e:
+                st.warning(f"Fehler in einer Zeile: {e}")
+
+        if hinzugefuegt > 0:
             wd.export_github_json()
-            st.success(f"{standort} am {datum_dt.date()} hinzugefügt!")
+            st.success(f"{hinzugefuegt} neue Einträge gespeichert ")
+
+        if uebersprungen > 0:
+            st.info(f"{uebersprungen} Einträge wurden übersprungen (bereits vorhanden)")
 
 
 def wettersimulation(wd):
