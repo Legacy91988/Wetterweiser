@@ -121,14 +121,14 @@
     "Temp_max": null
   },
   {
-    "ID": "7df591e5-4851-4d0b-86bb-21be1524e968",
+    "ID": "c66c3cdf-b517-4b0f-a615-0d5354379f4e",
     "Datum": "2024-08-05 00:00:00",
-    "Temperatur": 24.7,
+    "Temperatur": 21.8,
     "Niederschlag": 34.5,
     "Sonnenstunden": 260.4,
     "Quelle": "manuell",
     "Standort": "Gommern",
-    "Temp_min": 15.0,
+    "Temp_min": 9.2,
     "Temp_max": 34.4
   }
 ]
