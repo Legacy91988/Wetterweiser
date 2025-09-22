@@ -184,77 +184,21 @@ class WetterDaten:
         st.info(f"{hinzugefuegte} Einträge von GitHub importiert oder repariert.")
 
     @staticmethod
-    def load_github_data(debug=False, force_reload=False):
-        """Lädt die Wetterdaten aus GitHub, optional Cache umgehen"""
-
+    def load_github_data(debug=False):
         def _load():
-            wd = WetterAnalyse()  # Objekt erstellen
-            wd.import_github_json()  # Daten von GitHub importieren
+            wd = WetterAnalyse()
+            wd.import_github_json()  # GitHub-Daten laden
             return wd
 
-        if debug or force_reload:
-            return _load()
+        if debug:
+            return _load()  # Immer frisch laden
         else:
+
             @st.cache_data(ttl=300)
             def cached_load():
                 return _load()
 
             return cached_load()
-
-    def export_github_json_mit_pruefung(wd, debug_mode=False):
-        """
-        Speichert die Wetterdaten auf GitHub und prüft danach automatisch,
-        ob die Datei korrekt hochgeladen wurde.
-        """
-        if not GITHUB_TOKEN:
-            st.warning("Kein GitHub-Token gesetzt – Daten nicht gespeichert.")
-            return
-
-        # Messungen in JSON umwandeln
-        df = [m.als_dict() for m in wd.messungen]
-        json_data = json.dumps(df, indent=2)
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-
-        # SHA abrufen (falls Datei existiert)
-        url_get = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
-        try:
-            r_get = requests.get(url_get, headers=headers)
-            r_get.raise_for_status()
-            sha = r_get.json().get("sha")
-        except requests.RequestException:
-            sha = None
-
-        # Payload vorbereiten
-        payload = {
-            "message": f"Update Wetterdaten {datetime.datetime.now()}",
-            "content": base64.b64encode(json_data.encode()).decode(),
-            "branch": GITHUB_BRANCH,
-        }
-        if sha:
-            payload["sha"] = sha
-
-        # PUT-Anfrage
-        try:
-            r_put = requests.put(
-                f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}",
-                headers=headers,
-                data=json.dumps(payload),
-            )
-            r_put.raise_for_status()
-        except requests.RequestException as e:
-            st.error(f"Fehler beim Speichern auf GitHub: {e}")
-            return
-
-        # Automatische Prüfung: Datei abrufen und letzten Eintrag anzeigen
-        try:
-            r_check = requests.get(url_get, headers=headers)
-            r_check.raise_for_status()
-            content = base64.b64decode(r_check.json()["content"]).decode("utf-8")
-            data = json.loads(content)
-            st.success(f"Daten erfolgreich auf GitHub gespeichert! Einträge insgesamt: {len(data)}")
-            st.json(data[-5:])  # die letzten 5 Einträge anzeigen
-        except Exception as e:
-            st.warning(f"GitHub-Upload wurde durchgeführt, aber Abruf der Datei fehlgeschlagen: {e}")
 
 
 # Analyse & Diagramme
@@ -323,7 +267,49 @@ class WetterAnalyse(WetterDaten):
         wahrscheinlichkeit = len(regen_tage) / tage * 100  # % Regen
         return round(wahrscheinlichkeit, 1)
 
-    #
+    def export_github_json(self, debug_mode=False):
+        import json, base64, requests
+
+        daten = [m.als_dict() for m in self.messungen]
+
+        if debug_mode:
+            st.text_area(
+                "🔍 GitHub-Payload (Debug)", json.dumps(daten, indent=2), height=250
+            )
+
+        # Lokaler Fallback
+        with open("wetterdaten.json", "w", encoding="utf-8") as f:
+            json.dump(daten, f, ensure_ascii=False, indent=2)
+
+        # GitHub URL & Header
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+
+        # SHA holen (für Update)
+        resp = requests.get(f"{url}?ref={GITHUB_BRANCH}", headers=headers)
+        if resp.status_code == 200:
+            sha = resp.json().get("sha")
+        else:
+            sha = None  # Datei existiert noch nicht
+
+        # Content vorbereiten
+        content = base64.b64encode(json.dumps(daten, indent=2).encode()).decode()
+
+        # Payload für PUT
+        payload = {
+            "message": "Update Wetterdaten",
+            "branch": GITHUB_BRANCH,
+            "content": content,
+        }
+        if sha:
+            payload["sha"] = sha  # SHA nur hinzufügen, wenn Datei existiert
+
+        # PUT-Request
+        resp = requests.put(url, headers=headers, data=json.dumps(payload))
+        if resp.status_code in [200, 201]:
+            st.success("✅ Wetterdaten erfolgreich auf GitHub aktualisiert!")
+        else:
+            st.error(f"Fehler beim GitHub-Update: {resp.status_code} – {resp.text}")
 
     #  Prognose basierent auf den Mittelwert der letzten 7 Tage
     def prognose_mittelwert(self, serie, tage=3):
@@ -719,10 +705,9 @@ def manuelle_eingabe(wd):
 
     # Speichern-Button
     if st.button("Speichern", key="btn_speichern_manuell"):
-        st.success("Wetterdaten gespeichert!")
+        neue_messungen = []
 
         for _, row in edited_df.iterrows():
-            # Neues WetterMessung-Objekt erstellen
             messung = WetterMessung(
                 datum=row["Datum"],
                 temp_min=float(row["Temp_min"]) if pd.notna(row["Temp_min"]) else None,
@@ -732,14 +717,43 @@ def manuelle_eingabe(wd):
                     if pd.notna(row["Temp_min"]) and pd.notna(row["Temp_max"])
                     else None
                 ),
-                niederschlag=float(row["Niederschlag"]) if pd.notna(row["Niederschlag"]) else 0,
-                sonnenstunden=float(row["Sonnenstunden"]) if pd.notna(row["Sonnenstunden"]) else None,
+                niederschlag=(
+                    float(row["Niederschlag"]) if pd.notna(row["Niederschlag"]) else 0
+                ),
+                sonnenstunden=(
+                    float(row["Sonnenstunden"])
+                    if pd.notna(row["Sonnenstunden"])
+                    else None
+                ),
                 quelle=Quelle.MANUELL,
                 standort=row.get("Standort", ""),
             )
+            neue_messungen.append(messung)
 
-            # Messung hinzufügen
-            wd.hinzufuegen(messung)
+        # Prüfen auf Duplikate (Datum + Ort)
+        duplicate_entries = [
+            m for m in neue_messungen if wd.existiert_eintrag(m.datum, m.standort)
+        ]
+        if duplicate_entries:
+            st.warning(
+                f"{len(duplicate_entries)} Einträge existieren bereits für das Datum/den Ort!"
+            )
+            overwrite = st.checkbox("Vorhandene Einträge ersetzen?")
+            if overwrite:
+                for m in duplicate_entries:
+                    wd.ersetze_eintrag(m.datum, m.standort, m)
+                # Entferne die ersetzten aus neue_messungen, um sie nicht erneut hinzuzufügen
+                neue_messungen = [
+                    m for m in neue_messungen if m not in duplicate_entries
+                ]
+
+        # Alle neuen (nicht-doppelten) Messungen hinzufügen
+        for m in neue_messungen:
+            wd.hinzufuegen(m)
+
+        # GitHub Push: nur debug_mode=True, wenn Dev-Mode aktiv
+        wd.export_github_json(debug_mode=st.session_state.get("dev_mode", False))
+        st.success("Wetterdaten gespeichert!")
 
         # Eingabe zurücksetzen
         st.session_state.manuelle_input_df = pd.DataFrame(
@@ -866,8 +880,7 @@ def download_wetterdaten_csv(wd):
 
 # Funktion: Messungen anzeigen & (im Dev-Mode) löschen
 def anzeigen_und_loeschen(wd):
-    st.subheader(" Messungen anzeigen ")
-    # Alle Messungen als DataFrame
+    st.subheader("📋 Messungen anzeigen")
     df = wd.als_dataframe()
     if df.empty:
         st.info("Keine Daten vorhanden.")
@@ -896,30 +909,35 @@ def anzeigen_und_loeschen(wd):
 
     # Dev-Mode: Einträge löschen
     if st.session_state.get("dev_mode", False):
-        st.markdown("###  Einträge löschen (Dev-Mode)")
-        # Liste der Einträge vorbereiten
+        st.markdown("### 🗑️ Einträge löschen (Dev-Mode)")
+
         df_sorted = df.sort_values("Datum", ascending=False)
         eintraege = [
             f"{row['ID']} | {row['Standort']} | {row['Datum'].strftime('%d.%m.%Y')} | "
             f"{row['Temperatur']}°C | {row['Niederschlag']}mm | {row['Sonnenstunden']}h | {row['Quelle']}"
             for _, row in df_sorted.iterrows()
         ]
-        # Auswahl per Multiselect
+
         if eintraege:
             auswahl = st.multiselect(
                 "Einträge zum Löschen auswählen:",
                 options=eintraege,
-                key="dev_delete_multiselect",  # eindeutiger Key
+                key="dev_delete_multiselect",
             )
-            # Löschen bestätigen
+
             if auswahl and st.button("Löschen", key="dev_delete_button"):
                 for eintrag in auswahl:
                     eintrag_id = eintrag.split(" | ")[0]
                     wd.loeschen(eintrag_id)
-                wd.export_github_json()
+
+                # GitHub-Push optional, Debug anzeigen
+                wd.export_github_json(
+                    debug_mode=st.session_state.get("dev_mode", False)
+                )
+
                 st.success(f"{len(auswahl)} Messung(en) gelöscht!")
 
-                # Trigger zum "Soft-Rerun"
+                # Soft-Rerun Trigger: Tabelle wird neu geladen
                 st.session_state["reload"] = not st.session_state.get("reload", False)
 
 
@@ -932,7 +950,7 @@ def main():
         st.session_state.dev_mode = False
     if "reload" not in st.session_state:
         st.session_state["reload"] = False
-    _ = st.session_state["reload"]  # sorgt dafür, dass die App neu ausgeführt wird
+    _ = st.session_state["reload"]  # Trigger für Soft-Rerun
 
     # Entwickler-Passwort abfragen
     eingabe = st.sidebar.text_input("Entwickler-Passwort", type="password")
@@ -944,15 +962,8 @@ def main():
         if st.session_state.dev_mode:
             st.sidebar.success("🔍 Dev-Mode aktiv")
 
-    # GitHub neu laden Button
-    if st.sidebar.button("🔄 GitHub neu laden"):
-        st.session_state["reload"] = not st.session_state.get("reload", False)
-
-    # Wetterdaten laden (Cache ggf. umgehen)
-    wd = WetterDaten.load_github_data(
-        debug=st.session_state.dev_mode,
-        force_reload=st.session_state.get("reload", False)
-    )
+    # Wetterdaten laden (jetzt korrekt als WetterAnalyse)
+    wd = WetterAnalyse.load_github_data(debug=st.session_state.dev_mode)
 
     # Dev-Mode Dashboard initial anzeigen
     live_data = None
@@ -964,22 +975,16 @@ def main():
 
     if modus == "Manuelle Eingabe":
         manuelle_eingabe(wd)
-        # GitHub-Daten nach Speicherung automatisch neu laden
-        st.session_state["reload"] = not st.session_state.get("reload", False)
-
     elif modus == "Simulation":
         wettersimulation(wd)
-        # GitHub-Daten nach Simulation automatisch neu laden
-        st.session_state["reload"] = not st.session_state.get("reload", False)
-
     elif modus == "Live-Abfrage":
         ort = st.text_input("Ort für Live-Abfrage", "Musterstadt")
         if st.button("Live-Daten abrufen"):
             live_data = live_wetterdaten(wd, ort)
             dev_mode_dashboard(wd, live_data=live_data)
 
-        # CSV-Download
-        download_wetterdaten_csv(wd)
+    # CSV-Download
+    download_wetterdaten_csv(wd)
 
     # Diagramme und Statistiken
     df = wd.als_dataframe()
@@ -1000,7 +1005,6 @@ def main():
 
     # Messungen anzeigen & ggf. löschen
     anzeigen_und_loeschen(wd)
-
 
 
 # Programm starten
