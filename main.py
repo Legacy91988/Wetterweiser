@@ -31,44 +31,60 @@ GITHUB_JSON_PATH = "wetterdaten.json"
 
 
 # Klasse für einzelne Wettermessungen
+# Klasse für einzelne Wettermessungen
 class WetterMessung:
     def __init__(
         self,
         datum,
-        temperatur,
-        niederschlag,
+        temperatur=None,  # Durchschnitt, optional
+        niederschlag=0,
         sonnenstunden=None,
         id=None,
         quelle=Quelle.MANUELL,
         standort="Musterstadt",
+        temp_min=None,  # NEU
+        temp_max=None,  # NEU
     ):
-        # eindeutige ID´s
-        self.id = id or str(
-            uuid.uuid4()
-        )  # eindeutige ID ( neu erzeugt, falls keine Vorhanden)
-        self.datum = pd.to_datetime(datum)  # Datum in pandas datetime umwandeln
-        self.temperatur = temperatur
+        self.id = id or str(uuid.uuid4())  # eindeutige ID
+        self.datum = pd.to_datetime(datum)
+        self.temperatur = temperatur  # Durchschnitt optional
         self.niederschlag = niederschlag
         self.sonnenstunden = (
             sonnenstunden
             if sonnenstunden is not None
-            else round(
-                random.uniform(0, 12), 1
-            )  # zufällige Sonnenstunden, falls keine angegeben
+            else round(random.uniform(0, 12), 1)
         )
         self.quelle = quelle.value if isinstance(quelle, Quelle) else quelle
-        self.standort = standort  # Ort der Messung
+        self.standort = standort
+
+        # NEU: min/max Temperaturen speichern
+        self.temp_min = temp_min
+        self.temp_max = temp_max
 
     def als_dict(self):
-        # Wandelt die Messung in ein Dictionary um
+        # Falls Temperatur None ist, Mittelwert aus Temp_min und Temp_max berechnen
+        if self.temperatur is None:
+            temp_min = self.temp_min
+            temp_max = self.temp_max
+            if temp_min is not None and temp_max is not None:
+                temperatur = round((float(temp_min) + float(temp_max)) / 2, 1)
+            else:
+                temperatur = 0  # Fallback, falls keine Werte vorhanden
+        else:
+            temperatur = self.temperatur
+
         return {
             "ID": self.id,
-            "Datum": self.datum.strftime("%Y-%m-%d %H:%M:%S"),
-            "Temperatur": self.temperatur,
-            "Niederschlag": self.niederschlag,
-            "Sonnenstunden": self.sonnenstunden,
+            "Datum": self.datum.strftime("%Y-%m-%d %H:%M:%S") if self.datum else "",
+            "Temperatur": temperatur,
+            "Niederschlag": self.niederschlag if self.niederschlag is not None else 0,
+            "Sonnenstunden": (
+                self.sonnenstunden if self.sonnenstunden is not None else 0
+            ),
             "Quelle": self.quelle,
             "Standort": self.standort,
+            "Temp_min": self.temp_min,
+            "Temp_max": self.temp_max,
         }
 
 
@@ -238,17 +254,20 @@ class WetterDaten:
 class WetterAnalyse(WetterDaten):
     #  heißester und kältister Tag
     def extremwerte(self, ort_filter="Alle"):
-        df = self.als_dataframe()  # alle Messungen im DataFrame
+        df = self.als_dataframe()
         if df.empty:
-            return None, None  # keine Messung vorhanden
-        if ort_filter != "Alle":  # nach Ort Filtern
+            return None, None
+        if ort_filter != "Alle":
             df = df[df["Standort"] == ort_filter]
         if df.empty:
-            return None, None  # nach Filter keine Daten
-        # Rückgabe max und min Temperatur
-        return df.loc[df["Temperatur"].idxmax()], df.loc[df["Temperatur"].idxmin()]
+            return None, None
+        # Heißester Tag: max Temp_max
+        max_tag = df.loc[df["Temp_max"].idxmax()]
+        # Kältester Tag: min Temp_min
+        min_tag = df.loc[df["Temp_min"].idxmin()]
+        return max_tag, min_tag
 
-    # Zeigt die Jahresstatistik an (Durchschnitt, Summe, Extremwerte)
+    # Jahresstatistik anzeigen
     def jahresstatistik(self, ort_filter="Alle"):
         st.subheader("📈 Jahresstatistik")
         df = self.als_dataframe()
@@ -257,19 +276,33 @@ class WetterAnalyse(WetterDaten):
         if df.empty:
             st.info("Keine Daten vorhanden")
             return
-        # Durchschnittswerte und Summen anzeigen
-        st.write(f"Durchschnittstemperatur: {df['Temperatur'].mean():.2f} °C")
-        st.write(f"Gesamtniederschlag: {df['Niederschlag'].sum():.2f} mm")
-        st.write(f"Gesamte Sonnenstunden: {df['Sonnenstunden'].sum():.2f} h")
-        # Extremwerte (heißester und kältester Tag)
-        max_tag, min_tag = self.extremwerte(ort_filter)
-        if max_tag is not None:
-            st.success(
-                f"Heißester Tag: {max_tag['Datum'].date()} mit {max_tag['Temperatur']}°C"
-            )
-            st.info(
-                f"Kältester Tag: {min_tag['Datum'].date()} mit {min_tag['Temperatur']}°C"
-            )
+
+        # Durchschnittswerte und Summen anzeigen (nur gültige Werte)
+        temp_mean = df["Temperatur"].mean()
+        nied_sum = df["Niederschlag"].sum()
+        sonne_sum = df["Sonnenstunden"].sum()
+
+        st.write(f"Durchschnittstemperatur: {temp_mean:.2f} °C")
+        st.write(f"Gesamtniederschlag: {nied_sum:.2f} mm")
+        st.write(f"Gesamte Sonnenstunden: {sonne_sum:.2f} h")
+
+        # Extremwerte (heißester und kältester Tag) berechnen
+        df_extrem = df.dropna(
+            subset=["Temperatur"]
+        )  # nur Zeilen mit gültiger Temperatur
+        if df_extrem.empty:
+            st.info("Keine Temperaturdaten für Extremwert-Berechnung.")
+            return
+
+        max_tag_row = df_extrem.loc[df_extrem["Temperatur"].idxmax()]
+        min_tag_row = df_extrem.loc[df_extrem["Temperatur"].idxmin()]
+
+        st.success(
+            f"Heißester Tag: {max_tag_row['Datum'].date()} mit {max_tag_row['Temperatur']}°C"
+        )
+        st.info(
+            f"Kältester Tag: {min_tag_row['Datum'].date()} mit {min_tag_row['Temperatur']}°C"
+        )
 
     # berechnet Regenwahrscheinlichkeit
     def regenwahrscheinlichkeit(self, tage=7, ort_filter="Alle"):
@@ -376,18 +409,21 @@ class WetterAnalyse(WetterDaten):
             nied = self.prognose_mittelwert(df["Niederschlag"], tage)
         elif methode == "Trendbasierte Prognose":
             temp = self.prognose_trend(df["Temperatur"], tage)
-            nied = self.prognose_trend(df["Niederschlag"], tage)
+            nied = self.prognose_trend(df["Niederschlag"], tage, is_precipitation=True)
         else:  # Überraschungsprognose
             temp = self.prognose_ueberraschung(df["Temperatur"], tage)
-            nied = self.prognose_ueberraschung(df["Niederschlag"], tage)
+            nied = self.prognose_ueberraschung(
+                df["Niederschlag"], tage, is_precipitation=True
+            )
 
-        # Diagramm erstellen
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3))
-        ax1.plot(labels, temp, marker="o", color="red")
+        # Diagramm: Temperatur und Niederschlag nebeneinander
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+        ax1.plot(labels, temp, marker="o", color="red", linewidth=2)
         ax1.set_ylabel("°C")
         ax1.set_title(f"Temperaturprognose – {methode}")
 
-        ax2.bar(labels, nied, color="blue", alpha=0.5)
+        ax2.bar(labels, nied, color="blue", alpha=0.6)
         ax2.set_ylabel("mm")
         ax2.set_title(f"Niederschlagsprognose – {methode}")
 
@@ -436,7 +472,10 @@ class WetterAnalyse(WetterDaten):
         labels = [tag.strftime("%d-%m") for tag in letzte7]
         x = np.arange(len(labels))
         width = 0.35
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+
+        # Zwei nebeneinanderliegende Subplots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
         ax1.bar(x, nied, width, color="blue")
         ax1.set_xticks(x)
         ax1.set_xticklabels(labels)
@@ -467,7 +506,7 @@ class WetterAnalyse(WetterDaten):
                 st.info("Keine Daten für diesen Ort.")
                 return
 
-        # Filter nach Quelle (Alle, manuell, simuliert, live)
+        # Filter nach Quelle
         quelle_filter = st.selectbox(
             "Quelle auswählen:",
             ["Alle", "manuell", "simuliert", "live"],
@@ -479,7 +518,7 @@ class WetterAnalyse(WetterDaten):
                 st.info(f"Keine Daten für Quelle '{quelle_filter}'.")
                 return
 
-        # Jahr & Monat aus Datum extrahieren
+        # Jahr & Monat extrahieren
         df["Jahr"] = df["Datum"].dt.year
         df["Monat"] = df["Datum"].dt.month
         aktuelles_jahr = datetime.datetime.now().year
@@ -513,7 +552,6 @@ class WetterAnalyse(WetterDaten):
             .reindex(range(1, 13), fill_value=0)
         )
 
-        # Prüfen, ob überhaupt Werte vorhanden sind
         if (
             nied_sum.sum() == 0
             and sonne_sum.sum() == 0
@@ -538,22 +576,23 @@ class WetterAnalyse(WetterDaten):
             "Dez",
         ]
 
-        # Niederschlagsvergleich: aktuell vs letztes Jahr
         x = np.arange(len(monate))
         width = 0.35
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
 
+        # Niederschlag: aktuell vs letztes Jahr
         ax1.bar(
             x - width / 2,
             nied_sum.values,
-            width,
+            width=width,
             label=f"{aktuelles_jahr}",
             color="blue",
         )
         ax1.bar(
             x + width / 2,
             nied_letztes.values,
-            width,
+            width=width,
             label=f"{letztes_jahr}",
             color="orange",
             alpha=0.7,
@@ -564,18 +603,18 @@ class WetterAnalyse(WetterDaten):
         ax1.set_title("Monatlicher Niederschlag")
         ax1.legend()
 
-        # Sonnenstundenvergleich: aktuell vs letztes Jahr
+        # Sonnenstunden: aktuell vs letztes Jahr
         ax2.bar(
             x - width / 2,
             sonne_sum.values,
-            width,
+            width=width,
             label=f"{aktuelles_jahr}",
             color="yellow",
         )
         ax2.bar(
             x + width / 2,
             sonne_letztes.values,
-            width,
+            width=width,
             label=f"{letztes_jahr}",
             color="green",
             alpha=0.7,
@@ -664,7 +703,7 @@ def manuelle_eingabe(wd):
     )
 
     # Dynamische Tabelle, in der mehrere Zeilen hinzugefügt werden können
-    edited_df = st.data_editor(df_input, num_rows="dynamic", key="manuelle_eingabe")
+    edited_df = st.data_editor(df_input, num_rows="dynamic")
 
     if st.button("Speichern"):
         hinzugefuegt = 0
@@ -673,25 +712,24 @@ def manuelle_eingabe(wd):
         for _, row in edited_df.iterrows():
             try:
                 datum_dt = pd.to_datetime(row["Datum"])
+                temp_min = float(row["Temp_min"])
+                temp_max = float(row["Temp_max"])
                 niederschlag = float(row["Niederschlag"])
                 sonnenstunden = float(row["Sonnenstunden"])
                 standort = str(row["Standort"]).strip()
 
-                # Mittelwert aus Min/Max Temperatur berechnen
-                temperatur = round(
-                    (float(row["Temp_min"]) + float(row["Temp_max"])) / 2, 1
-                )
-
-                # prüfen, ob für diesen Tag & Standort schon ein Eintrag existiert
+                # Prüfen, ob für diesen Tag & Standort schon ein Eintrag existiert
                 if not wd.existiert_eintrag(datum_dt, standort):
                     wd.hinzufuegen(
                         WetterMessung(
                             datum=datum_dt,
-                            temperatur=temperatur,
+                            temperatur=None,
                             niederschlag=niederschlag,
                             sonnenstunden=sonnenstunden,
                             standort=standort,
                             quelle="manuell",
+                            temp_min=temp_min,
+                            temp_max=temp_max,
                         )
                     )
                     hinzugefuegt += 1
@@ -706,6 +744,21 @@ def manuelle_eingabe(wd):
 
         if uebersprungen > 0:
             st.info(f"{uebersprungen} Einträge wurden übersprungen (bereits vorhanden)")
+
+        # Leeren DataFrame anzeigen, um Eingabefeld zu resetten
+        st.data_editor(
+            pd.DataFrame(
+                {
+                    "Datum": [datetime.datetime.now().date()],
+                    "Temp_min": [15.0],
+                    "Temp_max": [25.0],
+                    "Niederschlag": [0.0],
+                    "Sonnenstunden": [6.0],
+                    "Standort": [""],
+                }
+            ),
+            num_rows="dynamic",
+        )
 
 
 def wettersimulation(wd):
@@ -863,7 +916,7 @@ def anzeigen_und_loeschen(wd):
             auswahl = st.multiselect(
                 "Einträge zum Löschen auswählen:",
                 options=eintraege,
-                key="dev_delete_multiselect",  #  eindeutiger Key
+                key="dev_delete_multiselect",  # eindeutiger Key
             )
             # Löschen bestätigen
             if auswahl and st.button("Löschen", key="dev_delete_button"):
@@ -872,7 +925,9 @@ def anzeigen_und_loeschen(wd):
                     wd.loeschen(eintrag_id)
                 wd.export_github_json()
                 st.success(f"{len(auswahl)} Messung(en) gelöscht!")
-                st.experimental_rerun()
+
+                # Trigger zum "Soft-Rerun"
+                st.session_state["reload"] = not st.session_state.get("reload", False)
 
 
 # Haupt-App
@@ -882,6 +937,13 @@ def main():
     # Dev-Mode Initialisierung
     if "dev_mode" not in st.session_state:
         st.session_state.dev_mode = False
+        # Soft-Rerun Flag
+    if "reload" not in st.session_state:
+        st.session_state["reload"] = False
+    _ = st.session_state[
+        "reload"
+    ]  # sorgt dafür, dass die App neu ausgeführt wird, wenn reload sich ändert
+
     # Entwickler-Passwort abfragen
     eingabe = st.sidebar.text_input("Entwickler-Passwort", type="password")
     ist_entwickler = eingabe == st.secrets["dev"]["debug_password"]
