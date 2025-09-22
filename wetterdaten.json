@@ -1,16 +1,5 @@
 [
   {
-    "ID": "2c3a88d8-fbd4-43c8-bd85-ab65e44a8500",
-    "Datum": "2024-01-05 00:00:00",
-    "Temperatur": 0.6,
-    "Niederschlag": 41.4,
-    "Sonnenstunden": 73.2,
-    "Quelle": "manuell",
-    "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
     "ID": "67cb4988-2838-40f8-9c67-d83aabacc45f",
     "Datum": "2024-02-05 00:00:00",
     "Temperatur": 7.8,
