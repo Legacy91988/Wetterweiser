@@ -184,74 +184,56 @@ class WetterDaten:
         st.info(f"{hinzugefuegte} Einträge von GitHub importiert oder repariert.")
 
     @staticmethod
-    def load_github_data(debug=False):
-        # Lädt die Wetterdaten aus GitHub.
+    def load_github_data(debug=False, force_reload=False):
+        """Lädt die Wetterdaten aus GitHub, optional Cache umgehen"""
+
         def _load():
             wd = WetterAnalyse()  # Objekt erstellen
-            wd.import_github_json()  # Daten von Git Hub importieren
+            wd.import_github_json()  # Daten von GitHub importieren
             return wd
 
-        if debug:
+        if debug or force_reload:
             return _load()
         else:
-            # Daten mit Streamlit-Cache laden (TTL = 300 Sekunden)
             @st.cache_data(ttl=300)
             def cached_load():
                 return _load()
 
             return cached_load()
 
-    def export_github_json(self, debug_mode=False):
+    def export_github_json_mit_pruefung(wd, debug_mode=False):
         """
-        Speichert die Wetterdaten auf GitHub als JSON-Datei.
-
-        Verwendet die GitHub-API, um die Datei zu aktualisieren. Jede Datei auf GitHub hat eine
-        eindeutige SHA (Secure Hash Algorithm), die die aktuelle Version identifiziert.
-        Die SHA wird benötigt, damit GitHub erkennt, welche Version der Datei überschrieben
-        werden soll, und um Konflikte zu vermeiden.
-
-        Funktionsweise:
-        1. Wandelt die Wetterdaten in JSON um.
-        2. Ruft die aktuelle SHA der Datei von GitHub ab.
-        3. Erstellt die Payload mit Message, Content, Branch und SHA.
-        4. Sendet die PUT-Anfrage an GitHub, um die Datei zu aktualisieren.
-        5. Gibt Erfolg oder Fehler auf der Streamlit-Oberfläche aus.
+        Speichert die Wetterdaten auf GitHub und prüft danach automatisch,
+        ob die Datei korrekt hochgeladen wurde.
         """
-
-        # Daten auf GitHub speichern, als JSON
         if not GITHUB_TOKEN:
             st.warning("Kein GitHub-Token gesetzt – Daten nicht gespeichert.")
             return
+
         # Messungen in JSON umwandeln
-        df = [m.als_dict() for m in self.messungen]
+        df = [m.als_dict() for m in wd.messungen]
         json_data = json.dumps(df, indent=2)
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
 
-        # Prüfen, ob Datei schon existiert, um SHA für Update zu erhalten
+        # SHA abrufen (falls Datei existiert)
         url_get = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
         try:
             r_get = requests.get(url_get, headers=headers)
             r_get.raise_for_status()
-            sha = r_get.json().get(
-                "sha"
-            )  # eindeutiger Hash der Datei, nötig für ein Update auf GitHub
+            sha = r_get.json().get("sha")
         except requests.RequestException:
-            sha = None  # n
+            sha = None
 
-        # Payload für GitHub PUT-Anfrage vorbereiten
+        # Payload vorbereiten
         payload = {
             "message": f"Update Wetterdaten {datetime.datetime.now()}",
             "content": base64.b64encode(json_data.encode()).decode(),
             "branch": GITHUB_BRANCH,
         }
-        # nur hinzufügen, wenn Datei schon existiert, damit GitHub weiß, dass wir updaten
         if sha:
             payload["sha"] = sha
 
-        if debug_mode:
-            st.text_area("🔍 GitHub-Payload", json.dumps(payload, indent=2), height=250)
-
-        ## Daten auf GitHub hochladen
+        # PUT-Anfrage
         try:
             r_put = requests.put(
                 f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}",
@@ -259,9 +241,20 @@ class WetterDaten:
                 data=json.dumps(payload),
             )
             r_put.raise_for_status()
-            st.success("Daten erfolgreich auf GitHub gespeichert!")
         except requests.RequestException as e:
             st.error(f"Fehler beim Speichern auf GitHub: {e}")
+            return
+
+        # Automatische Prüfung: Datei abrufen und letzten Eintrag anzeigen
+        try:
+            r_check = requests.get(url_get, headers=headers)
+            r_check.raise_for_status()
+            content = base64.b64decode(r_check.json()["content"]).decode("utf-8")
+            data = json.loads(content)
+            st.success(f"Daten erfolgreich auf GitHub gespeichert! Einträge insgesamt: {len(data)}")
+            st.json(data[-5:])  # die letzten 5 Einträge anzeigen
+        except Exception as e:
+            st.warning(f"GitHub-Upload wurde durchgeführt, aber Abruf der Datei fehlgeschlagen: {e}")
 
 
 # Analyse & Diagramme
@@ -937,17 +930,13 @@ def main():
     # Dev-Mode Initialisierung
     if "dev_mode" not in st.session_state:
         st.session_state.dev_mode = False
-        # Soft-Rerun Flag
     if "reload" not in st.session_state:
         st.session_state["reload"] = False
-    _ = st.session_state[
-        "reload"
-    ]  # sorgt dafür, dass die App neu ausgeführt wird, wenn reload sich ändert
+    _ = st.session_state["reload"]  # sorgt dafür, dass die App neu ausgeführt wird
 
     # Entwickler-Passwort abfragen
     eingabe = st.sidebar.text_input("Entwickler-Passwort", type="password")
     ist_entwickler = eingabe == st.secrets["dev"]["debug_password"]
-    # Dev-Mode aktivieren, falls Passwort korrekt
     if ist_entwickler:
         st.session_state.dev_mode = st.sidebar.checkbox(
             "🔍 Debug-Modus aktiv", value=st.session_state.dev_mode
@@ -955,8 +944,15 @@ def main():
         if st.session_state.dev_mode:
             st.sidebar.success("🔍 Dev-Mode aktiv")
 
-    # Wetterdaten laden
-    wd = WetterDaten.load_github_data(debug=st.session_state.dev_mode)
+    # GitHub neu laden Button
+    if st.sidebar.button("🔄 GitHub neu laden"):
+        st.session_state["reload"] = not st.session_state.get("reload", False)
+
+    # Wetterdaten laden (Cache ggf. umgehen)
+    wd = WetterDaten.load_github_data(
+        debug=st.session_state.dev_mode,
+        force_reload=st.session_state.get("reload", False)
+    )
 
     # Dev-Mode Dashboard initial anzeigen
     live_data = None
@@ -968,15 +964,19 @@ def main():
 
     if modus == "Manuelle Eingabe":
         manuelle_eingabe(wd)
+        # GitHub-Daten nach Speicherung automatisch neu laden
+        st.session_state["reload"] = not st.session_state.get("reload", False)
+
     elif modus == "Simulation":
         wettersimulation(wd)
+        # GitHub-Daten nach Simulation automatisch neu laden
+        st.session_state["reload"] = not st.session_state.get("reload", False)
+
     elif modus == "Live-Abfrage":
         ort = st.text_input("Ort für Live-Abfrage", "Musterstadt")
         if st.button("Live-Daten abrufen"):
             live_data = live_wetterdaten(wd, ort)
-            dev_mode_dashboard(
-                wd, live_data=live_data
-            )  # Dev-Infos nach Live-Daten aktualisieren
+            dev_mode_dashboard(wd, live_data=live_data)
 
         # CSV-Download
         download_wetterdaten_csv(wd)
@@ -1000,6 +1000,7 @@ def main():
 
     # Messungen anzeigen & ggf. löschen
     anzeigen_und_loeschen(wd)
+
 
 
 # Programm starten
