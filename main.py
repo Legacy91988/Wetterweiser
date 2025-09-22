@@ -128,10 +128,10 @@ class WetterDaten:
         self.messungen = [m for m in self.messungen if m.id != messung_id]
 
     def import_github_json(self):
-        # Importiert Messdaten von GitHub aus der JSON-Datei#
+        """Importiert Messdaten von GitHub aus der JSON-Datei und repariert fehlende Temp_min/Temp_max"""
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
-        # Daten von GitHub abrufen
+
         try:
             response = requests.get(url, headers=headers, timeout=5)
             response.raise_for_status()
@@ -139,35 +139,49 @@ class WetterDaten:
         except requests.RequestException as e:
             st.error(f"Fehler beim Zugriff auf GitHub: {e}")
             return
-        # Prüfen ob Inhalt vorhanden
+
         if "content" not in data_json:
             msg = data_json.get("message", "Unbekannter Fehler beim Laden der Daten.")
             st.warning(f"GitHub-API meldet: {msg}")
             return
-        # Inhalt dekodieren und JSON laden
+
         try:
             content = base64.b64decode(data_json["content"]).decode("utf-8")
             data = json.loads(content)
         except Exception as e:
             st.error(f"Fehler beim Dekodieren der GitHub-Daten: {e}")
             return
-        # neue Eintäge erstellen (wenn noch nicht vorhanden)
+
         hinzugefuegte = 0
         for eintrag in data:
+            # Alte Monatswerte reparieren: falls Temp_min/Temp_max None, setze auf Temperatur
+            temp_min = eintrag.get("Temp_min")
+            temp_max = eintrag.get("Temp_max")
+            temperatur = eintrag.get("Temperatur")
+
+            if (temp_min is None or temp_max is None) and temperatur is not None:
+                temp_min = temp_min if temp_min is not None else temperatur
+                temp_max = temp_max if temp_max is not None else temperatur
+
+            # Neue Wettermessung erstellen
             messung = WetterMessung(
                 id=eintrag.get("ID"),
                 datum=eintrag.get("Datum"),
-                temperatur=eintrag.get("Temperatur"),
+                temperatur=temperatur,
                 niederschlag=eintrag.get("Niederschlag"),
                 sonnenstunden=eintrag.get("Sonnenstunden"),
                 quelle=eintrag.get("Quelle"),
                 standort=eintrag.get("Standort"),
+                temp_min=temp_min,
+                temp_max=temp_max,
             )
+
+            # Nur hinzufügen, wenn noch kein Eintrag für diesen Tag & Ort existiert
             if not self.existiert_eintrag(messung.datum, messung.standort):
                 self.hinzufuegen(messung)
                 hinzugefuegte += 1
 
-        st.info(f"{hinzugefuegte} Einträge von GitHub importiert.")
+        st.info(f"{hinzugefuegte} Einträge von GitHub importiert oder repariert.")
 
     @staticmethod
     def load_github_data(debug=False):
@@ -688,76 +702,62 @@ def dev_mode_dashboard(wd, live_data=None):
 # App-Funktionen
 # Manuelle Eingabe mehrerer Wetterdaten (Tabelle)
 def manuelle_eingabe(wd):
-    st.subheader("Manuelle Wetterdaten eingeben (mehrere Tage)")
+    st.subheader("Manuelle Eingabe der Wetterdaten")
 
-    # Vorlage für die Eingabetabelle
-    df_input = pd.DataFrame(
-        {
-            "Datum": [datetime.datetime.now().date()],
-            "Temp_min": [15.0],
-            "Temp_max": [25.0],
-            "Niederschlag": [0.0],
-            "Sonnenstunden": [6.0],
-            "Standort": [""],
-        }
+    # Standardwerte für neue Eingabe
+    if "manuelle_input_df" not in st.session_state:
+        st.session_state.manuelle_input_df = pd.DataFrame(
+            {
+                "Datum": [datetime.datetime.now().date()],
+                "Temp_min": [15.0],
+                "Temp_max": [25.0],
+                "Niederschlag": [0.0],
+                "Sonnenstunden": [6.0],
+                "Standort": [""],
+            }
+        )
+
+    # Editor für Benutzereingabe
+    edited_df = st.data_editor(
+        st.session_state.manuelle_input_df,
+        num_rows="dynamic",
+        key="manuelle_editor_input",
     )
 
-    # Dynamische Tabelle, in der mehrere Zeilen hinzugefügt werden können
-    edited_df = st.data_editor(df_input, num_rows="dynamic")
-
-    if st.button("Speichern"):
-        hinzugefuegt = 0
-        uebersprungen = 0
+    # Speichern-Button
+    if st.button("Speichern", key="btn_speichern_manuell"):
+        st.success("Wetterdaten gespeichert!")
 
         for _, row in edited_df.iterrows():
-            try:
-                datum_dt = pd.to_datetime(row["Datum"])
-                temp_min = float(row["Temp_min"])
-                temp_max = float(row["Temp_max"])
-                niederschlag = float(row["Niederschlag"])
-                sonnenstunden = float(row["Sonnenstunden"])
-                standort = str(row["Standort"]).strip()
+            # Neues WetterMessung-Objekt erstellen
+            messung = WetterMessung(
+                datum=row["Datum"],
+                temp_min=float(row["Temp_min"]) if pd.notna(row["Temp_min"]) else None,
+                temp_max=float(row["Temp_max"]) if pd.notna(row["Temp_max"]) else None,
+                temperatur=(
+                    (float(row["Temp_min"]) + float(row["Temp_max"])) / 2
+                    if pd.notna(row["Temp_min"]) and pd.notna(row["Temp_max"])
+                    else None
+                ),
+                niederschlag=float(row["Niederschlag"]) if pd.notna(row["Niederschlag"]) else 0,
+                sonnenstunden=float(row["Sonnenstunden"]) if pd.notna(row["Sonnenstunden"]) else None,
+                quelle=Quelle.MANUELL,
+                standort=row.get("Standort", ""),
+            )
 
-                # Prüfen, ob für diesen Tag & Standort schon ein Eintrag existiert
-                if not wd.existiert_eintrag(datum_dt, standort):
-                    wd.hinzufuegen(
-                        WetterMessung(
-                            datum=datum_dt,
-                            temperatur=None,
-                            niederschlag=niederschlag,
-                            sonnenstunden=sonnenstunden,
-                            standort=standort,
-                            quelle="manuell",
-                            temp_min=temp_min,
-                            temp_max=temp_max,
-                        )
-                    )
-                    hinzugefuegt += 1
-                else:
-                    uebersprungen += 1
-            except Exception as e:
-                st.warning(f"Fehler in einer Zeile: {e}")
+            # Messung hinzufügen
+            wd.hinzufuegen(messung)
 
-        if hinzugefuegt > 0:
-            wd.export_github_json()
-            st.success(f"{hinzugefuegt} neue Einträge gespeichert ")
-
-        if uebersprungen > 0:
-            st.info(f"{uebersprungen} Einträge wurden übersprungen (bereits vorhanden)")
-
-        # Leeren DataFrame anzeigen, um Eingabefeld zu resetten
-        st.data_editor(
-            pd.DataFrame(
-                {
-                    "Datum": [datetime.datetime.now().date()],
-                    "Temp_min": [15.0],
-                    "Temp_max": [25.0],
-                    "Niederschlag": [0.0],
-                    "Sonnenstunden": [6.0],
-                    "Standort": [""],
-                }
-            ),
-            num_rows="dynamic",
+        # Eingabe zurücksetzen
+        st.session_state.manuelle_input_df = pd.DataFrame(
+            {
+                "Datum": [datetime.datetime.now().date()],
+                "Temp_min": [15.0],
+                "Temp_max": [25.0],
+                "Niederschlag": [0.0],
+                "Sonnenstunden": [6.0],
+                "Standort": [""],
+            }
         )
 
 
