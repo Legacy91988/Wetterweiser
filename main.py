@@ -13,16 +13,32 @@ import streamlit as st  # Web-App-Oberfläche
 
 
 # Quelle der Wetterdaten (Enum für bessere Übersicht und Sicherheit)
-
-
 class Quelle(Enum):
-    MANUELL = "manuell"  # von Hand eingeben
-    SIMULIERT = "simuliert"  # automatisch generierte zufalls Daten
-    LIVE = "live"  # von der Wetter-API abrufen
+    """
+    Enum zur Kennzeichnung der Datenquelle einer Wettermessung.
+
+    Attribute:
+        MANUELL: Daten wurden von Hand eingegeben.
+        SIMULIERT: Daten wurden automatisch simuliert.
+        LIVE: Daten stammen von einer Wetter-API.
+    """
+
+    MANUELL = "manuell"
+    SIMULIERT = "simuliert"
+    LIVE = "live"
 
 
-# GitHub-Konfiguration aus Streamlit Secrets
-# Repo-Name, Branch, Token und Pfad zur JSON-Datei mit Wetterdaten
+class GithubConfig:
+    """
+    GitHub-Konfiguration für das Laden und Speichern von Wetterdaten.
+
+    Variablen:
+        GITHUB_REPO: Name des GitHub-Repositories.
+        GITHUB_BRANCH: Branch, aus dem die Daten geladen werden (Standard: "main").
+        GITHUB_TOKEN: Persönlicher Zugriffstoken für Authentifizierung.
+        GITHUB_JSON_PATH: Pfad zur JSON-Datei mit den Wetterdaten im Repository.
+    """
+
 
 GITHUB_REPO = st.secrets["Legacy91988"]["Wetterweiser"]
 GITHUB_BRANCH = st.secrets["Legacy91988"].get("branch", "main")
@@ -30,9 +46,22 @@ GITHUB_TOKEN = st.secrets["Legacy91988"]["github_token"]
 GITHUB_JSON_PATH = "wetterdaten.json"
 
 
-# Klasse für einzelne Wettermessungen
-# Klasse für einzelne Wettermessungen
 class WetterMessung:
+    """
+    Repräsentiert eine einzelne Wettermessung.
+
+    Attribute:
+        id (str): Eindeutige ID der Messung
+        datum (datetime): Datum der Messung
+        temperatur (float|None): Durchschnittstemperatur (optional)
+        temp_min (float|None): Minimale Temperatur
+        temp_max (float|None): Maximale Temperatur
+        niederschlag (float): Niederschlag in mm
+        sonnenstunden (float): Sonnenstunden (falls None, wird zufällig erzeugt)
+        quelle (str): Herkunft der Daten ("manuell", "simuliert", "live")
+        standort (str): Ort der Messung
+    """
+
     def __init__(
         self,
         datum,
@@ -57,11 +86,21 @@ class WetterMessung:
         self.quelle = quelle.value if isinstance(quelle, Quelle) else quelle
         self.standort = standort
 
-        # NEU: min/max Temperaturen speichern
+        # min/max Temperaturen speichern
         self.temp_min = temp_min
         self.temp_max = temp_max
 
     def als_dict(self):
+        """
+        Gibt die Wettermessung als Dictionary zurück
+        Berechnet die Durchschnittstemperatur, falls 'temperatur' None ist, aus Temp_min und Temp_max.
+        Fallback auf 0, wenn keine Werte vorhanden.
+
+        Returns:
+            dict: Messdaten mit Feldern ID, Datum, Temperatur, Temp_min, Temp_max,
+                  Niederschlag, Sonnenstunden, Quelle und Standort.
+        """
+
         # Falls Temperatur None ist, Mittelwert aus Temp_min und Temp_max berechnen
         if self.temperatur is None:
             temp_min = self.temp_min
@@ -88,12 +127,20 @@ class WetterMessung:
         }
 
 
-# Klasse zum Verwalten mehrerer Wettermessung
 class WetterDaten:
+    """
+    Verwaltung mehrerer Wettermessungen
+
+    Speichert, fügt hinzu, ersetzt, löscht und wandelt Messungen in DataFrames um.
+    """
+
     def __init__(self):
         self.messungen = []  # Liste aller Messung
 
     def hinzufuegen(self, messung: WetterMessung):
+        """
+        Fügt eine Wettermessung zur Liste hinzu
+        """
         self.messungen.append(messung)
 
     # prüfen ob für einen Ort oder Datum ein Eintrag existiert
@@ -103,8 +150,18 @@ class WetterDaten:
                 return True
         return False
 
-    # ersetzt eine bestehende Messung
     def ersetze_eintrag(self, datum, standort, neue_messung):
+        """
+        Prüft, ob bereits eine Wettermessung für ein bestimmtes Datum und einen bestimmten Ort existiert
+
+        Args:
+            datum (datetime-like): Das Datum der zu prüfenden Messung.
+            standort (str): Der Name des Standorts.
+
+        Returns:
+            bool: True, wenn ein Eintrag existiert, sonst False.
+        """
+
         # alte Messung entfernen
         self.messungen = [
             m
@@ -114,21 +171,37 @@ class WetterDaten:
         # neue Messung hinzufügen
         self.hinzufuegen(neue_messung)
 
-    # Wandelt alle Messung in ein pandas DataFrame um
     def als_dataframe(self):
-        # Liste aller Dicts in DataFrame
+        """
+        Wandelt alle gespeicherten Wettermessungen in ein pandas DataFrame um
+        DataFrame mit allen Messungen, sortiert nach Datum
+        Spalten: ID, Datum, Temperatur, Temp_min, Temp_max,
+        Niederschlag, Sonnenstunden, Quelle, Standort
+        """
+
         df = pd.DataFrame([m.als_dict() for m in self.messungen])
         if not df.empty:
             df["Datum"] = pd.to_datetime(df["Datum"])
             df = df.sort_values("Datum")  # nach Datum sortieren
         return df
 
-    # löscht eine Messung anhand ihrer ID
     def loeschen(self, messung_id):
+        """
+        Löscht eine Wettermessung anhand ihrer eindeutigen ID.
+        """
         self.messungen = [m for m in self.messungen if m.id != messung_id]
 
     def import_github_json(self):
-        """Importiert Messdaten von GitHub aus der JSON-Datei und repariert fehlende Temp_min/Temp_max"""
+        """
+        Lädt Wettermessungen aus einer GitHub-JSON-Datei und fügt sie der App hinzu
+        Vorgehensweise:
+            1. Ruft die JSON-Datei über die GitHub-API ab.
+            2. Dekodiert den Base64-Inhalt.
+            3. Erstellt für jeden Eintrag ein WetterMessung-Objekt.
+            4. Fügt nur Einträge hinzu, die noch nicht für Datum + Ort existieren.
+            - Zeigt eine Info-Meldung an, dass die GitHub-Daten übernommen wurden.
+        """
+
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}?ref={GITHUB_BRANCH}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
 
@@ -179,19 +252,35 @@ class WetterDaten:
             if not self.existiert_eintrag(messung.datum, messung.standort):
                 self.hinzufuegen(messung)
 
-        st.info(f"{hinzugefuegte} Einträge von GitHub importiert oder repariert.")
+        st.info(f"GitHub-Daten wurden geladen und in die App übernommen.")
 
     @staticmethod
     def load_github_data(debug=False):
+        """
+        Lädt die Wetterdaten aus GitHub und gibt ein WetterAnalyse-Objekt zurück.
+
+        Parameter:
+            debug (bool): Wenn True, werden die Daten direkt geladen ohne Caching.
+                          Wenn False, werden die Daten für 5 Minuten gecached.
+
+        Rückgabe:
+            WetterAnalyse: Objekt mit allen geladenen Messungen.
+
+        Hinweise:
+            - Verwendet intern `import_github_json`, um die Messungen zu übernehmen.
+            - Durch Caching wird die GitHub-Abfrage bei wiederholtem Aufruf reduziert.
+        """
+
         def _load_data():
             # Neues WetterAnalyse-Objekt erstellen
             wd = WetterAnalyse()
             wd.import_github_json()  # Messungen von GitHub hinzufügen
-            return wd  # Korrekt: komplettes Objekt zurückgeben, nicht wd.df
+            return wd  # Korrekt: komplettes Objekt zurückgeben
 
         if debug:
             wd = _load_data()
         else:
+
             @st.cache_data(ttl=300)
             def cached_load_data():
                 return _load_data()
@@ -203,8 +292,24 @@ class WetterDaten:
 
 # Analyse & Diagramme
 class WetterAnalyse(WetterDaten):
-    #  heißester und kältister Tag
     def extremwerte(self, ort_filter="Alle"):
+        """
+        Berechnet die extremen Temperaturen (heißester und kältester Tag)
+
+        Parameter:
+            ort_filter (str): Optional. Filter für einen bestimmten Ort
+                              Standard: "Alle" (alle Standorte berücksichtigen)
+
+        Rückgabe:
+            tuple: Zwei Pandas Series:
+                - max_tag: Zeile mit höchster Temp_max
+                - min_tag: Zeile mit niedrigster Temp_min
+            Falls keine Daten vorhanden sind, wird (None, None) zurückgegeben
+
+        Hinweise:
+            - Verwendet die gespeicherten Temp_min und Temp_max, nicht die Durchschnittstemperatur
+            - DataFrame wird nach Ort gefiltert, falls ort_filter != "Alle"
+        """
         df = self.als_dataframe()
         if df.empty:
             return None, None
@@ -220,7 +325,19 @@ class WetterAnalyse(WetterDaten):
 
     # Jahresstatistik anzeigen
     def jahresstatistik(self, ort_filter="Alle"):
-        st.subheader("📈 Jahresstatistik")
+        """
+        Zeigt eine Jahresübersicht für Temperatur, Niederschlag und Sonnenstunden an
+        Anzeige:
+            - Durchschnittstemperatur
+            - Gesamtniederschlag
+            - Gesamte Sonnenstunden
+            - Extremwerte: heißester Tag (Maximaltemperatur) und kältester Tag (Minimaltemperatur)
+        Hinweise:
+            - Verwendet Temp_min und Temp_max für Extremwertberechnung.
+            - Gibt nichts zurück, Daten werden direkt über Streamlit angezeigt.
+        """
+
+        st.subheader("Jahresstatistik")
         df = self.als_dataframe()
         if ort_filter != "Alle":
             df = df[df["Standort"] == ort_filter]
@@ -253,8 +370,23 @@ class WetterAnalyse(WetterDaten):
             f"Kältester Tag: {min_tag['Datum'].date()} mit Min: {min_tag['Temp_min']}°C"
         )
 
-    # berechnet Regenwahrscheinlichkeit
     def regenwahrscheinlichkeit(self, tage=7, ort_filter="Alle"):
+        """
+        Berechnet die Regenwahrscheinlichkeit für die letzten Tage
+
+        Parameter:
+            tage (int): Anzahl der letzten Tage, die betrachtet werden. Standard: 7
+            ort_filter (str): Optional. Filter für einen bestimmten Ort
+                              Standard: "Alle" (alle Standorte berücksichtigen)
+
+        Rückgabe:
+            float: Regenwahrscheinlichkeit in Prozent, gerundet auf 1 Nachkommastelle.
+
+        Hinweise:
+            - Ein Tag zählt als "Regen", wenn der Niederschlag > 0 mm ist.
+            - Nutzt nur die vorhandenen Wetterdaten im DataFrame.
+        """
+
         df = self.als_dataframe()
         if df.empty:
             return 0
@@ -266,7 +398,32 @@ class WetterAnalyse(WetterDaten):
         return round(wahrscheinlichkeit, 1)
 
     def export_github_json(self, debug_mode=False):
-        import json, base64, requests
+        """
+        Exportiert aktuelle Wetterdaten als JSON auf GitHub und lokal.
+
+        Parameter:
+            debug_mode (bool): Wenn True, zeigt die JSON-Payload in Streamlit an.
+
+        Funktionsweise:
+            - Alte GitHub-Daten werden geladen.
+            - Neue Messungen + alte Messungen zusammengeführt, Duplikate per ID entfernt.
+            - JSON-Datei lokal gespeichert (als Fallback).
+            - Prüft, ob die Datei bereits auf GitHub existiert:
+                - Wenn ja, wird die aktuelle SHA der Datei abgerufen und im Update-Payload
+                  verwendet, damit GitHub die Datei korrekt überschreiben kann.
+                - Wenn nein, wird ein neues File erstellt.
+            - JSON wird Base64-codiert und mit einem PUT-Request auf GitHub hochgeladen.
+            - Statusmeldung in Streamlit angezeigt (Erfolg oder Fehler).
+
+        SHA (Secure Hash Algorithm):
+            - GitHub speichert zu jeder Datei einen SHA-1 Hash.
+            - Dieser Hash ist eine eindeutige Zeichenkette, die den aktuellen Inhalt der Datei
+              repräsentiert.
+            - Wenn man die Datei aktualisieren möchte, muss man GitHub die SHA der aktuellen
+              Datei mitgeben.
+            - GitHub prüft so, ob man wirklich die neueste Version der Datei überschreibt.
+            - Ohne SHA würde ein Update fehlschlagen oder es könnte zu Konflikten kommen.
+        """
 
         # Alte GitHub-Daten laden
         alt_wd = WetterAnalyse()
@@ -309,12 +466,21 @@ class WetterAnalyse(WetterDaten):
         # PUT-Request
         resp = requests.put(url, headers=headers, data=json.dumps(payload))
         if resp.status_code in [200, 201]:
-            st.success("✅ Wetterdaten erfolgreich auf GitHub aktualisiert!")
+            st.success(" Wetterdaten erfolgreich auf GitHub aktualisiert!")
         else:
             st.error(f"Fehler beim GitHub-Update: {resp.status_code} – {resp.text}")
 
-    #  Prognose basierent auf den Mittelwert der letzten 7 Tage
     def prognose_mittelwert(self, serie, tage=3):
+        """
+        Berechnet eine einfache Wetterprognose auf Basis des Mittelwerts.
+
+        Funktionsweise:
+            - Nimmt die letzten 7 Werte der Serie (falls vorhanden).
+            - Berechnet den Mittelwert dieser Werte.
+            - Gibt eine Liste zurück, in der dieser Mittelwert für die nächsten 'tage' Tage wiederholt wird.
+            - Falls keine Werte vorhanden, wird 0 zurückgegeben.
+        """
+
         mw = (
             serie.tail(7).mean() if len(serie) >= 1 else 0
         )  # Mittelwert der letzten 7 Einträge
@@ -322,6 +488,25 @@ class WetterAnalyse(WetterDaten):
 
     # Prognose basierend auf dem Trend der letzten 7 Tage
     def prognose_trend(self, serie, tage=3, is_precipitation=False):
+        """
+        Erstellt eine einfache Prognose basierend auf dem Trend der letzten Werte
+
+        Parameter:
+            serie (pd.Series): Zeitreihe mit Werten (z.B. Temperaturen oder Niederschlag).
+            tage (int): Anzahl der Tage, für die die Prognose erstellt werden soll.
+            is_precipitation (bool): Wenn True, werden negative Prognosewerte (für Niederschlag) auf 0 gesetzt.
+
+        Rückgabe:
+            Liste von Länge 'tage' mit den prognostizierten Werten.
+
+        Funktionsweise:
+            - Nimmt die letzten 7 Werte der Serie (falls vorhanden).
+            - Berechnet eine lineare Trendlinie (erste Ordnung) über diese Werte.
+            - Extrapoliert die Trendlinie für die nächsten 'tage' Tage.
+            - Für Niederschlag wird sichergestellt, dass keine negativen Werte entstehen.
+            - Wenn nicht genügend Datenpunkte vorhanden sind, wird die Mittelwert-Prognose genutzt.
+        """
+
         data = serie.tail(7).values  # letzte 7 Werte
         if len(data) >= 2:
             trend = np.poly1d(
@@ -336,6 +521,24 @@ class WetterAnalyse(WetterDaten):
 
     # Prognose mit zufälliger Abweichung
     def prognose_ueberraschung(self, serie, tage=3, is_precipitation=False):
+        """
+        Erstellt eine "Überraschungs"-Prognose mit kleinen zufälligen Schwankungen.
+
+        Parameter:
+            serie (pd.Series): Zeitreihe mit Werten (z.B. Temperaturen oder Niederschlag).
+            tage (int): Anzahl der Tage, für die die Prognose erstellt werden soll.
+            is_precipitation (bool): Wenn True, werden negative Werte für Niederschlag auf 0 gesetzt.
+
+        Rückgabe:
+            Liste von Länge 'tage' mit den prognostizierten Werten.
+
+        Funktionsweise:
+            - Berechnet den Mittelwert der letzten 7 Werte der Serie (falls vorhanden).
+            - Fügt jedem prognostizierten Tag eine kleine Zufallsschwankung (-3 bis +3) hinzu.
+            - Stellt sicher, dass Niederschlag nicht negativ ist.
+            - Liefert so eine einfache, "spielerische" Prognose für die kommenden Tage.
+        """
+
         mw = (
             serie.tail(7).mean() if len(serie) >= 1 else 0
         )  # Mittelwert der letzten 7 Werte
@@ -346,22 +549,67 @@ class WetterAnalyse(WetterDaten):
             werte = [max(0, w) for w in werte]
         return werte
 
-    # Prognosen für Temperatur & Niederschlag (basierend auf Mittelwert)
     def prognose_temperatur(self, tage=3):
+        """
+        Erstellt eine Temperaturprognose für die kommenden Tage.
+
+        Parameter:
+            tage (int): Anzahl der Tage, für die die Prognose erstellt werden soll.
+
+        Rückgabe:
+            Liste von Länge 'tage' mit den prognostizierten Durchschnittstemperaturen in °C.
+
+        Funktionsweise:
+            - Nutzt die gespeicherten Temperaturwerte aus allen Messungen.
+            - Berechnet eine Prognose basierend auf dem linearen Trend der letzten 7 Werte.
+            - Fällt die Trendberechnung aus (zu wenig Daten), wird der Mittelwert der letzten 7 Tage verwendet.
+        """
         df = self.als_dataframe()
         if df.empty:
             return []
         return self.prognose_trend(df["Temperatur"], tage)
 
     def prognose_niederschlag(self, tage=3):
+        """
+        Erstellt eine Niederschlagsprognose für die kommenden Tage.
+
+        Parameter:
+            tage (int): Anzahl der Tage, für die die Prognose erstellt werden soll.
+
+        Rückgabe:
+            Liste von Länge 'tage' mit den prognostizierten Niederschlagsmengen in mm.
+
+        Funktionsweise:
+            - Nutzt die gespeicherten Niederschlagswerte aus allen Messungen.
+            - Berechnet eine Prognose basierend auf dem linearen Trend der letzten 7 Werte.
+            - Negative Werte werden auf 0 gesetzt, da Niederschlag nicht negativ sein kann.
+            - Fällt die Trendberechnung aus (zu wenig Daten), wird der Mittelwert der letzten 7 Tage verwendet.
+        """
+
         df = self.als_dataframe()
         if df.empty:
             return []
         return self.prognose_trend(df["Niederschlag"], tage, is_precipitation=True)
 
-    # Diagramme für Temperatur und Niederschlag (3 Tage)
     def plot_3tage_prognose(self, ort_filter="Alle"):
-        st.subheader("🌤️ 3-Tage Prognose")
+        """
+        Erstellt ein 3-Tage-Prognose-Diagramm für Temperatur und Niederschlag.
+
+        Parameter:
+            ort_filter (str): Optionaler Filter für einen bestimmten Ort.
+                              Standard ist "Alle", dann werden alle Orte berücksichtigt.
+
+        Funktionsweise:
+            - Filtert die Daten nach Ort und optional nach Quelle (manuell, simuliert, live).
+            - Der Benutzer wählt die Prognose-Methode:
+              Mittelwert, Trend oder Überraschung.
+            - Berechnet die Prognosen für die nächsten 3 Tage.
+            - Visualisiert die Ergebnisse in einem nebeneinander liegenden Diagramm:
+                - Linie für Temperatur (°C)
+                - Balken für Niederschlag (mm)
+            - Zeigt informative Meldungen an, falls keine Daten verfügbar sind.
+        """
+        st.subheader("3-Tage Prognose")
         df = self.als_dataframe()
 
         if df.empty:
@@ -425,9 +673,26 @@ class WetterAnalyse(WetterDaten):
         plt.tight_layout()
         st.pyplot(fig)
 
-    # Vergleich der letzten 7 Tage ( Niederschlag und Sonnenstunden)
     def plot_7tage_vergleich(self, ort_filter="Alle"):
-        st.subheader("📊 Letzte 7 Tage – Niederschlag & Sonnenstunden")
+        """
+        Visualisiert Niederschlag und Sonnenstunden der letzten 7 Tage.
+
+        Parameter:
+            ort_filter (str): Optionaler Filter für einen bestimmten Ort.
+                              Standard ist "Alle", dann werden alle Orte berücksichtigt.
+
+        Funktionsweise:
+            - Filtert die Daten nach Ort und optional nach Quelle (manuell, simuliert, live).
+            - Berechnet für die letzten 7 Tage die täglichen Summen von:
+                - Niederschlag (mm)
+                - Sonnenstunden (h)
+            - Zeigt die Ergebnisse in zwei nebeneinanderliegenden Balkendiagrammen:
+                - Linkes Diagramm: Niederschlag
+                - Rechtes Diagramm: Sonnenstunden
+            - Zeigt informative Meldungen an, falls keine Daten vorhanden sind.
+        """
+
+        st.subheader("Letzte 7 Tage – Niederschlag & Sonnenstunden")
         df = self.als_dataframe()
         if df.empty:
             st.info("Keine Daten vorhanden.")
@@ -488,7 +753,27 @@ class WetterAnalyse(WetterDaten):
 
     # Vergleich der Monate (Niederschlag und Sonnenstuunden)
     def plot_monatsvergleich(self, ort_filter="Alle"):
-        st.subheader("📊 Monatsvergleich – Niederschlag & Sonnenstunden")
+        """
+        Zeigt den Monatsvergleich von Niederschlag und Sonnenstunden für aktuelles und
+        letztes Jahr an.
+
+        Parameter:
+            ort_filter (str): Optionaler Filter für einen bestimmten Ort.
+                              Standard ist "Alle", dann werden alle Orte berücksichtigt.
+
+        Funktionsweise:
+            - Filtert die Daten nach Ort und optional nach Quelle (manuell, simuliert, live).
+            - Extrahiert Jahr und Monat aus den Datumsangaben.
+            - Summiert für jeden Monat:
+                - Niederschlag (mm)
+                - Sonnenstunden (h)
+            - Erstellt zwei nebeneinanderliegende Balkendiagramme:
+                - Linkes Diagramm: Niederschlag – aktuelles Jahr vs letztes Jahr
+                - Rechtes Diagramm: Sonnenstunden – aktuelles Jahr vs letztes Jahr
+            - Zeigt informative Meldungen an, falls keine Daten vorhanden sind.
+        """
+
+        st.subheader("Monatsvergleich – Niederschlag & Sonnenstunden")
         df = self.als_dataframe()
         if df.empty:
             st.info("Keine Daten vorhanden.")
@@ -634,7 +919,7 @@ def dev_mode_dashboard(wd, live_data=None):
     if not st.session_state.get("dev_mode", False):
         return  # Nur anzeigen, wenn Dev-Mode aktiv
 
-    st.markdown("## 🔍 Dev-Mode Übersicht")
+    st.markdown("Dev-Mode Übersicht")
 
     # GitHub-Daten (alle geladenen)
     st.subheader("GitHub: geladene Messungen")
@@ -681,8 +966,21 @@ def dev_mode_dashboard(wd, live_data=None):
 
 
 # App-Funktionen
-# Manuelle Eingabe mehrerer Wetterdaten (Tabelle)
 def manuelle_eingabe(wd):
+    """
+    Stellt ein Interface für die manuelle Eingabe von Wetterdaten bereit.
+
+    Parameter:
+        wd (WetterDaten | WetterAnalyse): Objekt, in das die neuen Messungen eingefügt werden.
+
+    Funktionsweise:
+        - Zeigt einen Streamlit-Editor für Datum, Min/Max-Temperatur, Niederschlag, Sonnenstunden und Standort.
+        - Berechnet optional den Durchschnitt aus Temp_min und Temp_max.
+        - Prüft auf Duplikate (gleicher Tag + Ort) und ermöglicht, vorhandene Einträge zu überschreiben.
+        - Speichert neue oder aktualisierte Messungen im WetterDaten-Objekt.
+        - Optional: Exportiert die Daten zu GitHub (Debug-Modus, falls aktiv).
+        - Setzt die Eingabefelder für die nächste Messung zurück.
+    """
     st.subheader("Manuelle Eingabe der Wetterdaten")
 
     # Standardwerte für neue Eingabe
@@ -771,6 +1069,25 @@ def manuelle_eingabe(wd):
 
 
 def wettersimulation(wd):
+    def wettersimulation(wd):
+        """
+        Führt eine zufällige Wettersimulation durch und speichert die Ergebnisse.
+
+        Parameter:
+            wd (WetterDaten | WetterAnalyse): Objekt, in das die simulierten Messungen eingefügt werden.
+
+        Funktionsweise:
+            - Nutzer gibt Ort und Anzahl der Simulations-Tage (1–30) ein.
+            - Für jeden Tag wird eine zufällige Messung erzeugt:
+                - Temperatur (15–30 °C)
+                - Niederschlag (0–10 mm)
+                - Sonnenstunden (0–12 h)
+            - Quelle der Messungen wird als 'simuliert' markiert.
+            - Die erzeugten Messungen werden dem WetterDaten-Objekt hinzugefügt.
+            - Optional: Alle simulierten Daten werden auf GitHub gespeichert.
+            - Zeigt eine Erfolgsmeldung mit der Anzahl simulierten Tage.
+        """
+
     st.subheader("Simulation")
     ort = st.text_input("Ort")
     # Anzahl der Tage für die Simulation auswählen , 1-30, 7-Standart
@@ -861,8 +1178,20 @@ def live_wetterdaten(wd, ort):
     return data
 
 
-# Funktion zum Herunterladen aller Wetterdaten als CSV
 def download_wetterdaten_csv(wd):
+    """
+    Ermöglicht den Download aller Wetterdaten als CSV-Datei über Streamlit.
+
+    Parameter:
+        wd (WetterDaten | WetterAnalyse): Objekt, aus dem die Wetterdaten als DataFrame extrahiert werden.
+
+    Funktionsweise:
+        - Wandelt alle gespeicherten Messungen in ein pandas DataFrame um.
+        - Prüft, ob Daten vorhanden sind; falls nicht, wird eine Info-Meldung angezeigt.
+        - Wandelt das DataFrame in CSV-Format um.
+        - Stellt einen Download-Button in Streamlit bereit, mit dem der Benutzer die CSV-Datei herunterladen kann.
+    """
+
     st.subheader("Wetterdaten als CSV herunterladen")
     # Alle Messungen als DataFrame
     df = wd.als_dataframe()
@@ -882,7 +1211,21 @@ def download_wetterdaten_csv(wd):
 
 # Funktion: Messungen anzeigen & (im Dev-Mode) löschen
 def anzeigen_und_loeschen(wd):
-    st.subheader("📋 Messungen anzeigen")
+    """
+    Zeigt alle Wetter-Messungen in einer Tabelle an und ermöglicht im Dev-Mode das Löschen einzelner Einträge.
+
+    Parameter:
+        wd (WetterDaten | WetterAnalyse): Objekt, das die Wetter-Messungen enthält.
+
+    Funktionsweise:
+        - Wandelt alle Messungen in ein DataFrame um und zeigt es sortiert nach Datum.
+        - Ermöglicht die Filterung nach Ort.
+        - Im Dev-Mode:
+            - Zeigt ein Multiselect für die Auswahl von Einträgen zum Löschen.
+            - Löscht ausgewählte Einträge aus dem Objekt und optional auf GitHub.
+            - Aktualisiert die Tabelle nach dem Löschen automatisch.
+    """
+    st.subheader("Messungen anzeigen")
     df = wd.als_dataframe()
     if df.empty:
         st.info("Keine Daten vorhanden.")
@@ -945,6 +1288,31 @@ def anzeigen_und_loeschen(wd):
 
 # Haupt-App
 def main():
+    """
+    Hauptfunktion der Wetterweiser-App (Streamlit).
+
+    Funktionsweise:
+        - Initialisiert den Dev-Mode und einen Soft-Rerun-Trigger.
+        - Fragt optional ein Entwickler-Passwort ab, um den Debug-Modus zu aktivieren.
+        - Lädt Wetterdaten von GitHub als WetterAnalyse-Objekt.
+        - Zeigt Dev-Mode Dashboard mit Debug-Infos (falls aktiviert).
+        - Bietet drei Modi zum Hinzufügen von Daten:
+            1. Manuelle Eingabe
+            2. Simulation zufälliger Wetterdaten
+            3. Live-Abfrage von Wetterdaten über API
+        - Ermöglicht den Download aller Wetterdaten als CSV.
+        - Zeigt Diagramme und Statistiken:
+            - 3-Tage Prognose
+            - Regenwahrscheinlichkeit der letzten 7 Tage
+            - Vergleich der letzten 7 Tage
+            - Monatsvergleich
+            - Jahresstatistik
+        - Zeigt alle Messungen an und ermöglicht im Dev-Mode das Löschen von Einträgen.
+
+    Hinweis:
+        - Die Funktion steuert die gesamte App-Logik und Oberfläche in Streamlit.
+    """
+
     st.title("🌤️ Wetterweiser")
 
     # Dev-Mode Initialisierung
@@ -962,7 +1330,7 @@ def main():
             "🔍 Debug-Modus aktiv", value=st.session_state.dev_mode
         )
         if st.session_state.dev_mode:
-            st.sidebar.success("🔍 Dev-Mode aktiv")
+            st.sidebar.success("Dev-Mode aktiv")
 
     # Wetterdaten laden (als WetterAnalyse-Objekt)
     wd = WetterAnalyse.load_github_data(debug=st.session_state.dev_mode)
@@ -999,7 +1367,7 @@ def main():
     wd.plot_3tage_prognose(ort_filter)
     regen_wahrscheinlichkeit = wd.regenwahrscheinlichkeit(tage=7, ort_filter=ort_filter)
     st.write(
-        f"🌧️ Regenwahrscheinlichkeit in den letzten 7 Tagen: {regen_wahrscheinlichkeit}%"
+        f" Regenwahrscheinlichkeit in den letzten 7 Tagen: {regen_wahrscheinlichkeit}%"
     )
     wd.plot_7tage_vergleich(ort_filter)
     wd.plot_monatsvergleich(ort_filter)
@@ -1007,7 +1375,6 @@ def main():
 
     # Messungen anzeigen & ggf. löschen
     anzeigen_und_loeschen(wd)
-
 
 
 # Programm starten
