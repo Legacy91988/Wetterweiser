@@ -186,11 +186,13 @@ class WetterDaten:
     @staticmethod
     def load_github_data(debug=False):
         def _load_data():
-            # Holt die Daten aus GitHub und gibt sie als DataFrame zurück
-            wd = WetterAnalyse()
-            wd.import_github_json()
-            return wd.df  # oder wd.als_dataframe(), je nachdem wie du’s nennst
+            # Holt die Daten von GitHub in ein frisches WetterAnalyse-Objekt
+            wd_temp = WetterAnalyse()
+            wd_temp.import_github_json()
+            # Liefert einen DataFrame zurück (nicht das Objekt)
+            return wd_temp.als_dataframe()
 
+        # Nur den DataFrame cachen (DataFrames sind picklebar)
         if debug:
             df = _load_data()
         else:
@@ -199,11 +201,23 @@ class WetterDaten:
                 return _load_data()
             df = cached_load_data()
 
-        # Neues WetterAnalyse-Objekt erstellen und aus df füttern
+        # Neues WetterAnalyse-Objekt aus dem (ggf. gecachten) DataFrame bauen
         wd = WetterAnalyse()
-        for _, row in df.iterrows():
-            wd.hinzufuegen(WetterMessung(**row.to_dict()))
-
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            for _, row in df.iterrows():
+                wd.hinzufuegen(
+                    WetterMessung(
+                        datum=row.get("Datum"),
+                        temperatur=None if pd.isna(row.get("Temperatur")) else row.get("Temperatur"),
+                        niederschlag=0 if pd.isna(row.get("Niederschlag")) else row.get("Niederschlag"),
+                        sonnenstunden=None if pd.isna(row.get("Sonnenstunden")) else row.get("Sonnenstunden"),
+                        id=row.get("ID"),
+                        quelle=row.get("Quelle"),
+                        standort=row.get("Standort"),
+                        temp_min=None if pd.isna(row.get("Temp_min")) else row.get("Temp_min"),
+                        temp_max=None if pd.isna(row.get("Temp_max")) else row.get("Temp_max"),
+                    )
+                )
         return wd
 
 
