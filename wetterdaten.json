@@ -273,5 +273,104 @@
     "Standort": "Gommern",
     "Temp_min": -1.0,
     "Temp_max": 21.3
+  },
+  {
+    "ID": "fb502b7c-79f9-44b3-9b6e-57678f4ac530",
+    "Datum": "2024-04-15 00:00:00",
+    "Temperatur": 12.55,
+    "Niederschlag": 23.1,
+    "Sonnenstunden": 151.3,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": -2.2,
+    "Temp_max": 27.3
+  },
+  {
+    "ID": "03ccaabf-9995-4d07-a018-e09304b7c37d",
+    "Datum": "2024-05-15 00:00:00",
+    "Temperatur": 15.9,
+    "Niederschlag": 68.5,
+    "Sonnenstunden": 233.9,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 4.3,
+    "Temp_max": 27.5
+  },
+  {
+    "ID": "7c882b87-187e-4a25-8509-86e2bfc1e780",
+    "Datum": "2024-06-15 00:00:00",
+    "Temperatur": 19.8,
+    "Niederschlag": 50.4,
+    "Sonnenstunden": 222.4,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 7.5,
+    "Temp_max": 32.1
+  },
+  {
+    "ID": "487a22b8-3a72-4874-b6fe-62f321ab19c5",
+    "Datum": "2024-07-15 00:00:00",
+    "Temperatur": 21.700000000000003,
+    "Niederschlag": 71.6,
+    "Sonnenstunden": 229.1,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 10.2,
+    "Temp_max": 33.2
+  },
+  {
+    "ID": "2e58a38a-1e49-4bb0-a677-9303fb1bcb8a",
+    "Datum": "2024-08-15 00:00:00",
+    "Temperatur": 21.799999999999997,
+    "Niederschlag": 34.5,
+    "Sonnenstunden": 260.4,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 9.2,
+    "Temp_max": 34.4
+  },
+  {
+    "ID": "bce789ec-9da6-4b46-9b2c-4cf33dacf632",
+    "Datum": "2024-09-15 00:00:00",
+    "Temperatur": 19.900000000000002,
+    "Niederschlag": 74.9,
+    "Sonnenstunden": 208.2,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 6.1,
+    "Temp_max": 33.7
+  },
+  {
+    "ID": "2b780db7-ff61-4454-9d7d-aa906efdbb40",
+    "Datum": "2024-10-15 00:00:00",
+    "Temperatur": 11.299999999999999,
+    "Niederschlag": 40.2,
+    "Sonnenstunden": 119.5,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 1.9,
+    "Temp_max": 20.7
+  },
+  {
+    "ID": "52ce4ecc-4a63-4d77-8a3a-6503d697219b",
+    "Datum": "2024-11-15 00:00:00",
+    "Temperatur": 7.1499999999999995,
+    "Niederschlag": 32.9,
+    "Sonnenstunden": 37.2,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": -1.4,
+    "Temp_max": 15.7
+  },
+  {
+    "ID": "fe04faea-f080-4155-aa67-8699fb56fbb5",
+    "Datum": "2024-12-15 00:00:00",
+    "Temperatur": 5.25,
+    "Niederschlag": 36.8,
+    "Sonnenstunden": 43.3,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": -3.9,
+    "Temp_max": 14.4
   }
 ]
