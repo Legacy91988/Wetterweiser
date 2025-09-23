@@ -154,16 +154,15 @@ class WetterDaten:
 
         hinzugefuegte = 0
         for eintrag in data:
-            # Alte Monatswerte reparieren: falls Temp_min/Temp_max None, setze auf Temperatur
             temp_min = eintrag.get("Temp_min")
             temp_max = eintrag.get("Temp_max")
             temperatur = eintrag.get("Temperatur")
 
+            # Alte Monatswerte reparieren: falls Temp_min/Temp_max None, setze auf Temperatur
             if (temp_min is None or temp_max is None) and temperatur is not None:
                 temp_min = temp_min if temp_min is not None else temperatur
                 temp_max = temp_max if temp_max is not None else temperatur
 
-            # Neue Wettermessung erstellen
             messung = WetterMessung(
                 id=eintrag.get("ID"),
                 datum=eintrag.get("Datum"),
@@ -179,45 +178,26 @@ class WetterDaten:
             # Nur hinzufügen, wenn noch kein Eintrag für diesen Tag & Ort existiert
             if not self.existiert_eintrag(messung.datum, messung.standort):
                 self.hinzufuegen(messung)
-                hinzugefuegte += 1
 
         st.info(f"{hinzugefuegte} Einträge von GitHub importiert oder repariert.")
 
     @staticmethod
     def load_github_data(debug=False):
         def _load_data():
-            # Holt die Daten von GitHub in ein frisches WetterAnalyse-Objekt
-            wd_temp = WetterAnalyse()
-            wd_temp.import_github_json()
-            # Liefert einen DataFrame zurück (nicht das Objekt)
-            return wd_temp.als_dataframe()
+            # Neues WetterAnalyse-Objekt erstellen
+            wd = WetterAnalyse()
+            wd.import_github_json()  # Messungen von GitHub hinzufügen
+            return wd  # Korrekt: komplettes Objekt zurückgeben, nicht wd.df
 
-        # Nur den DataFrame cachen (DataFrames sind picklebar)
         if debug:
-            df = _load_data()
+            wd = _load_data()
         else:
             @st.cache_data(ttl=300)
             def cached_load_data():
                 return _load_data()
-            df = cached_load_data()
 
-        # Neues WetterAnalyse-Objekt aus dem (ggf. gecachten) DataFrame bauen
-        wd = WetterAnalyse()
-        if isinstance(df, pd.DataFrame) and not df.empty:
-            for _, row in df.iterrows():
-                wd.hinzufuegen(
-                    WetterMessung(
-                        datum=row.get("Datum"),
-                        temperatur=None if pd.isna(row.get("Temperatur")) else row.get("Temperatur"),
-                        niederschlag=0 if pd.isna(row.get("Niederschlag")) else row.get("Niederschlag"),
-                        sonnenstunden=None if pd.isna(row.get("Sonnenstunden")) else row.get("Sonnenstunden"),
-                        id=row.get("ID"),
-                        quelle=row.get("Quelle"),
-                        standort=row.get("Standort"),
-                        temp_min=None if pd.isna(row.get("Temp_min")) else row.get("Temp_min"),
-                        temp_max=None if pd.isna(row.get("Temp_max")) else row.get("Temp_max"),
-                    )
-                )
+            wd = cached_load_data()
+
         return wd
 
 
@@ -258,21 +238,19 @@ class WetterAnalyse(WetterDaten):
         st.write(f"Gesamte Sonnenstunden: {sonne_sum:.2f} h")
 
         # Extremwerte (heißester und kältester Tag) berechnen
-        df_extrem = df.dropna(
-            subset=["Temperatur"]
-        )  # nur Zeilen mit gültiger Temperatur
+        df_extrem = df.dropna(subset=["Temp_min", "Temp_max"])
         if df_extrem.empty:
             st.info("Keine Temperaturdaten für Extremwert-Berechnung.")
             return
 
-        max_tag_row = df_extrem.loc[df_extrem["Temperatur"].idxmax()]
-        min_tag_row = df_extrem.loc[df_extrem["Temperatur"].idxmin()]
+        max_tag = df_extrem.loc[df_extrem["Temp_max"].idxmax()]
+        min_tag = df_extrem.loc[df_extrem["Temp_min"].idxmin()]
 
         st.success(
-            f"Heißester Tag: {max_tag_row['Datum'].date()} mit {max_tag_row['Temperatur']}°C"
+            f"Heißester Tag: {max_tag['Datum'].date()} mit Max: {max_tag['Temp_max']}°C"
         )
         st.info(
-            f"Kältester Tag: {min_tag_row['Datum'].date()} mit {min_tag_row['Temperatur']}°C"
+            f"Kältester Tag: {min_tag['Datum'].date()} mit Min: {min_tag['Temp_min']}°C"
         )
 
     # berechnet Regenwahrscheinlichkeit
@@ -290,7 +268,14 @@ class WetterAnalyse(WetterDaten):
     def export_github_json(self, debug_mode=False):
         import json, base64, requests
 
-        daten = [m.als_dict() for m in self.messungen]
+        # Alte GitHub-Daten laden
+        alt_wd = WetterAnalyse()
+        alt_wd.import_github_json()
+
+        # Neue + alte Messungen zusammenführen, Duplikate per ID entfernen
+        kombi = list({m.id: m for m in (alt_wd.messungen + self.messungen)}.values())
+
+        daten = [m.als_dict() for m in kombi]
 
         if debug_mode:
             st.text_area(
@@ -307,10 +292,7 @@ class WetterAnalyse(WetterDaten):
 
         # SHA holen (für Update)
         resp = requests.get(f"{url}?ref={GITHUB_BRANCH}", headers=headers)
-        if resp.status_code == 200:
-            sha = resp.json().get("sha")
-        else:
-            sha = None  # Datei existiert noch nicht
+        sha = resp.json().get("sha") if resp.status_code == 200 else None
 
         # Content vorbereiten
         content = base64.b64encode(json.dumps(daten, indent=2).encode()).decode()
@@ -982,7 +964,7 @@ def main():
         if st.session_state.dev_mode:
             st.sidebar.success("🔍 Dev-Mode aktiv")
 
-    # Wetterdaten laden (jetzt korrekt als WetterAnalyse)
+    # Wetterdaten laden (als WetterAnalyse-Objekt)
     wd = WetterAnalyse.load_github_data(debug=st.session_state.dev_mode)
 
     # Dev-Mode Dashboard initial anzeigen
@@ -1025,6 +1007,7 @@ def main():
 
     # Messungen anzeigen & ggf. löschen
     anzeigen_und_loeschen(wd)
+
 
 
 # Programm starten
