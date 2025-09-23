@@ -460,5 +460,16 @@
     "Standort": "Gommern",
     "Temp_min": 8.1,
     "Temp_max": 36.0
+  },
+  {
+    "ID": "2053ac6f-ada6-4720-9dec-8ca28637450f",
+    "Datum": "2025-09-22 00:00:00",
+    "Temperatur": 15.05,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 0.0,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": 6.1,
+    "Temp_max": 24.0
   }
 ]
