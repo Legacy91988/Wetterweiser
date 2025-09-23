@@ -262,5 +262,16 @@
     "Standort": "Gommern",
     "Temp_min": -1.1,
     "Temp_max": 16.7
+  },
+  {
+    "ID": "f34be86f-e6e4-427d-9769-f29f5158ad57",
+    "Datum": "2024-03-15 00:00:00",
+    "Temperatur": 10.15,
+    "Niederschlag": 22.3,
+    "Sonnenstunden": 131.1,
+    "Quelle": "manuell",
+    "Standort": "Gommern",
+    "Temp_min": -1.0,
+    "Temp_max": 21.3
   }
 ]
