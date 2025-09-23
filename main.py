@@ -185,20 +185,26 @@ class WetterDaten:
 
     @staticmethod
     def load_github_data(debug=False):
-        def _load():
+        def _load_data():
+            # Holt die Daten aus GitHub und gibt sie als DataFrame zurück
             wd = WetterAnalyse()
-            wd.import_github_json()  # GitHub-Daten laden
-            return wd
+            wd.import_github_json()
+            return wd.df  # oder wd.als_dataframe(), je nachdem wie du’s nennst
 
         if debug:
-            return _load()  # Immer frisch laden
+            df = _load_data()
         else:
-
             @st.cache_data(ttl=300)
-            def cached_load():
-                return _load()
+            def cached_load_data():
+                return _load_data()
+            df = cached_load_data()
 
-            return cached_load()
+        # Neues WetterAnalyse-Objekt erstellen und aus df füttern
+        wd = WetterAnalyse()
+        for _, row in df.iterrows():
+            wd.hinzufuegen(WetterMessung(**row.to_dict()))
+
+        return wd
 
 
 # Analyse & Diagramme
