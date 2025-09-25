@@ -504,16 +504,5 @@
     "Standort": "",
     "Temp_min": 4.7,
     "Temp_max": 14.7
-  },
-  {
-    "ID": "80c476c3-6593-454a-beef-9f467226d5b7",
-    "Datum": "2025-09-22 00:00:00",
-    "Temperatur": 8.85,
-    "Niederschlag": 0.0,
-    "Sonnenstunden": 0.0,
-    "Quelle": "manuell",
-    "Standort": "",
-    "Temp_min": 4.7,
-    "Temp_max": 13.0
   }
 ]
