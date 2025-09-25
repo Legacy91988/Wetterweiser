@@ -460,38 +460,5 @@
     "Standort": "Gommern",
     "Temp_min": 8.1,
     "Temp_max": 36.0
-  },
-  {
-    "ID": "c5fe9631-686a-43dc-9b63-c6dc5e4acb0b",
-    "Datum": "2025-09-25 18:59:02",
-    "Temperatur": 28.3,
-    "Niederschlag": 6.3,
-    "Sonnenstunden": 6.2,
-    "Quelle": "simuliert",
-    "Standort": "",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
-    "ID": "b198d90b-9bd4-4b6b-b94e-40cfbc8420fc",
-    "Datum": "2025-09-24 18:59:02",
-    "Temperatur": 20.9,
-    "Niederschlag": 2.4,
-    "Sonnenstunden": 8.6,
-    "Quelle": "simuliert",
-    "Standort": "",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
-    "ID": "a0f1fee1-08c6-49ac-9374-e60378af604c",
-    "Datum": "2025-09-23 18:59:02",
-    "Temperatur": 18.5,
-    "Niederschlag": 6.1,
-    "Sonnenstunden": 11.2,
-    "Quelle": "simuliert",
-    "Standort": "",
-    "Temp_min": null,
-    "Temp_max": null
   }
 ]
