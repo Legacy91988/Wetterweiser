@@ -502,6 +502,17 @@
     "Sonnenstunden": 0.0,
     "Quelle": "live",
     "Standort": "Remscheid",
+    "Temp_min": 8.47,
+    "Temp_max": 8.47
+  },
+  {
+    "ID": "05c1126e-25fa-449d-88b2-fdbd04e31a58",
+    "Datum": "2025-09-25 22:10:03",
+    "Temperatur": 10.92,
+    "Niederschlag": 0.65,
+    "Sonnenstunden": 0.0,
+    "Quelle": "live",
+    "Standort": "Ibach",
     "Temp_min": null,
     "Temp_max": null
   }
