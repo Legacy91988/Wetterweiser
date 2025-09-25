@@ -469,8 +469,8 @@
     "Sonnenstunden": 10.9,
     "Quelle": "simuliert",
     "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
+    "Temp_min": 15.6,
+    "Temp_max": 15.6
   },
   {
     "ID": "c88ad7d0-0bd7-47ed-88aa-93124b86c4bf",
@@ -480,8 +480,8 @@
     "Sonnenstunden": 9.1,
     "Quelle": "simuliert",
     "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
+    "Temp_min": 25.8,
+    "Temp_max": 25.8
   },
   {
     "ID": "59cfc144-ea80-4bbe-bdea-0bbc1ea69157",
@@ -491,51 +491,18 @@
     "Sonnenstunden": 9.2,
     "Quelle": "simuliert",
     "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
+    "Temp_min": 24.1,
+    "Temp_max": 24.1
   },
   {
-    "ID": "fcd58573-b344-438f-917d-3655fe5ba4b3",
-    "Datum": "2025-09-22 15:56:00",
-    "Temperatur": 19.3,
-    "Niederschlag": 3.3,
-    "Sonnenstunden": 11.5,
-    "Quelle": "simuliert",
-    "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
-    "ID": "d1211299-8b7f-4997-bba5-184bce2ca307",
-    "Datum": "2025-09-21 15:56:00",
-    "Temperatur": 28.5,
-    "Niederschlag": 2.3,
-    "Sonnenstunden": 5.2,
-    "Quelle": "simuliert",
-    "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
-    "ID": "6d3bad16-8c0b-488e-b44d-266552380fad",
-    "Datum": "2025-09-20 15:56:00",
-    "Temperatur": 27.0,
-    "Niederschlag": 8.2,
-    "Sonnenstunden": 8.8,
-    "Quelle": "simuliert",
-    "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
-  },
-  {
-    "ID": "8e276a64-e43f-4f4d-942f-904027f04ece",
-    "Datum": "2025-09-19 15:56:00",
-    "Temperatur": 16.8,
-    "Niederschlag": 5.2,
-    "Sonnenstunden": 7.6,
-    "Quelle": "simuliert",
-    "Standort": "Gommern",
-    "Temp_min": null,
-    "Temp_max": null
+    "ID": "9c97be0f-1ccd-4766-a30f-b92f14e4447e",
+    "Datum": "2025-09-22 00:00:00",
+    "Temperatur": 9.7,
+    "Niederschlag": 0.0,
+    "Sonnenstunden": 0.0,
+    "Quelle": "manuell",
+    "Standort": "",
+    "Temp_min": 4.7,
+    "Temp_max": 14.7
   }
 ]
