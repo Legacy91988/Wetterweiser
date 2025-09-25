@@ -424,15 +424,15 @@ class WetterAnalyse(WetterDaten):
             - GitHub prüft so, ob man wirklich die neueste Version der Datei überschreibt.
             - Ohne SHA würde ein Update fehlschlagen oder es könnte zu Konflikten kommen.
         """
+        #Alte GitHub Daten laden
+        #alt_wd = WetterAnalyse()
+        #alt_wd.import_github_json()
 
-        # Alte GitHub-Daten laden
-        alt_wd = WetterAnalyse()
-        alt_wd.import_github_json()
-
-        # Neue + alte Messungen zusammenführen, Duplikate per ID entfernen
-        kombi = list({m.id: m for m in (alt_wd.messungen + self.messungen)}.values())
-
-        daten = [m.als_dict() for m in kombi]
+        #kombi = list({m.id: m for m in (alt_wd.messungen + self.messungen)}.values())
+        #daten = [m.als_dict() for m in kombi]
+        
+        # Nur aktuelle Messungen exportieren
+        daten = [m.als_dict() for m in self.messungen]
 
         if debug_mode:
             st.text_area(
@@ -445,11 +445,15 @@ class WetterAnalyse(WetterDaten):
 
         # GitHub URL & Header
         url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_JSON_PATH}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+        headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
 
         # SHA holen (für Update)
-        resp = requests.get(f"{url}?ref={GITHUB_BRANCH}", headers=headers)
-        sha = resp.json().get("sha") if resp.status_code == 200 else None
+        try:
+            resp = requests.get(f"{url}?ref={GITHUB_BRANCH}", headers=headers)
+            resp.raise_for_status()
+            sha = resp.json().get("sha")
+        except Exception:
+            sha = None  # Datei existiert noch nicht
 
         # Content vorbereiten
         content = base64.b64encode(json.dumps(daten, indent=2).encode()).decode()
@@ -466,7 +470,7 @@ class WetterAnalyse(WetterDaten):
         # PUT-Request
         resp = requests.put(url, headers=headers, data=json.dumps(payload))
         if resp.status_code in [200, 201]:
-            st.success(" Wetterdaten erfolgreich auf GitHub aktualisiert!")
+            st.success("Wetterdaten erfolgreich auf GitHub aktualisiert!")
         else:
             st.error(f"Fehler beim GitHub-Update: {resp.status_code} – {resp.text}")
 
@@ -1270,15 +1274,26 @@ def anzeigen_und_loeschen(wd):
             )
 
             if auswahl and st.button("Löschen", key="dev_delete_button"):
+                geloeschte_messungen = []
+
                 for eintrag in auswahl:
                     eintrag_id = eintrag.split(" | ")[0]
+                    # Vorher speichern für Debug
+                    messung = next((m for m in wd.messungen if m.id == eintrag_id), None)
+                    if messung:
+                        geloeschte_messungen.append(messung.als_dict())
+                    # Dann löschen
                     wd.loeschen(eintrag_id)
 
                 # GitHub-Push optional, Debug anzeigen
-                wd.export_github_json(
-                    debug_mode=st.session_state.get("dev_mode", False)
-                )
+                if st.session_state.get("dev_mode", False):
+                    st.text_area(
+                        "GitHub-Payload (Debug) – zu löschende Messungen",
+                        json.dumps(geloeschte_messungen, indent=2),
+                        height=200
+                    )
 
+                wd.export_github_json(debug_mode=st.session_state.get("dev_mode", False))
                 st.success(f"{len(auswahl)} Messung(en) gelöscht!")
 
                 # Soft-Rerun Trigger: Tabelle wird neu geladen
