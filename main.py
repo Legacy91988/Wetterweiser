@@ -430,7 +430,7 @@ class WetterAnalyse(WetterDaten):
 
         #kombi = list({m.id: m for m in (alt_wd.messungen + self.messungen)}.values())
         #daten = [m.als_dict() for m in kombi]
-        
+
         # Nur aktuelle Messungen exportieren
         daten = [m.als_dict() for m in self.messungen]
 
@@ -1171,6 +1171,7 @@ def live_wetterdaten(wd, ort):
     # Prüfen, ob für heute schon ein Eintrag existiert
     if not wd.existiert_eintrag(messung.datum, ort):
         wd.hinzufuegen(messung)
+        wd.export_github_json(debug_mode=st.session_state.get("dev_mode", False))
         st.success(
             f"Live-Daten für {ort} hinzugefügt: {temp}°C, {niederschlag}mm, {sonnenstunden}h Sonne"
         )
