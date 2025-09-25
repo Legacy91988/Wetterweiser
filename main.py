@@ -53,7 +53,7 @@ class WetterMessung:
     Attribute:
         id (str): Eindeutige ID der Messung
         datum (datetime): Datum der Messung
-        temperatur (float|None): Durchschnittstemperatur (optional)
+        temperatur (float|None): Durchschnittstemperatur
         temp_min (float|None): Minimale Temperatur
         temp_max (float|None): Maximale Temperatur
         niederschlag (float): Niederschlag in mm
@@ -71,8 +71,8 @@ class WetterMessung:
         id=None,
         quelle=Quelle.MANUELL,
         standort="Musterstadt",
-        temp_min=None,  # NEU
-        temp_max=None,  # NEU
+        temp_min=None,
+        temp_max=None,
     ):
         self.id = id or str(uuid.uuid4())  # eindeutige ID
         self.datum = pd.to_datetime(datum)
@@ -298,7 +298,7 @@ class WetterAnalyse(WetterDaten):
 
         Parameter:
             ort_filter (str): Optional. Filter für einen bestimmten Ort
-                              Standard: "Alle" (alle Standorte berücksichtigen)
+            Standard: "Alle" (alle Standorte berücksichtigen)
 
         Rückgabe:
             tuple: Zwei Pandas Series:
@@ -733,7 +733,7 @@ class WetterAnalyse(WetterDaten):
         x = np.arange(len(labels))
         width = 0.35
 
-        # Zwei nebeneinanderliegende Subplots
+        # Zwei nebeneinanderliegende plots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
 
         ax1.bar(x, nied, width, color="blue")
@@ -1069,8 +1069,7 @@ def manuelle_eingabe(wd):
 
 
 def wettersimulation(wd):
-    def wettersimulation(wd):
-        """
+    """
         Führt eine zufällige Wettersimulation durch und speichert die Ergebnisse.
 
         Parameter:
@@ -1086,7 +1085,7 @@ def wettersimulation(wd):
             - Die erzeugten Messungen werden dem WetterDaten-Objekt hinzugefügt.
             - Optional: Alle simulierten Daten werden auf GitHub gespeichert.
             - Zeigt eine Erfolgsmeldung mit der Anzahl simulierten Tage.
-        """
+            """
 
     st.subheader("Simulation")
     ort = st.text_input("Ort")
