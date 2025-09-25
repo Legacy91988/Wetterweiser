@@ -513,6 +513,17 @@
     "Sonnenstunden": 0.0,
     "Quelle": "live",
     "Standort": "Ibach",
+    "Temp_min": 10.92,
+    "Temp_max": 10.92
+  },
+  {
+    "ID": "601bb723-465b-43bd-a3bc-cd800e4f2b40",
+    "Datum": "2025-09-25 22:10:37",
+    "Temperatur": 8.7,
+    "Niederschlag": 0,
+    "Sonnenstunden": 0.0,
+    "Quelle": "live",
+    "Standort": "naumburg",
     "Temp_min": null,
     "Temp_max": null
   }
