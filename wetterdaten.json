@@ -462,17 +462,6 @@
     "Temp_max": 36.0
   },
   {
-    "ID": "8a985d16-654f-4c8a-b3cb-96b91363a516",
-    "Datum": "2025-09-25 15:56:00",
-    "Temperatur": 15.6,
-    "Niederschlag": 7.2,
-    "Sonnenstunden": 10.9,
-    "Quelle": "simuliert",
-    "Standort": "Gommern",
-    "Temp_min": 15.6,
-    "Temp_max": 15.6
-  },
-  {
     "ID": "c88ad7d0-0bd7-47ed-88aa-93124b86c4bf",
     "Datum": "2025-09-24 15:56:00",
     "Temperatur": 25.8,
