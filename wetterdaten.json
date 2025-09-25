@@ -462,14 +462,80 @@
     "Temp_max": 36.0
   },
   {
-    "ID": "2053ac6f-ada6-4720-9dec-8ca28637450f",
-    "Datum": "2025-09-22 00:00:00",
-    "Temperatur": 15.05,
-    "Niederschlag": 0.0,
-    "Sonnenstunden": 0.0,
-    "Quelle": "manuell",
+    "ID": "8a985d16-654f-4c8a-b3cb-96b91363a516",
+    "Datum": "2025-09-25 15:56:00",
+    "Temperatur": 15.6,
+    "Niederschlag": 7.2,
+    "Sonnenstunden": 10.9,
+    "Quelle": "simuliert",
     "Standort": "Gommern",
-    "Temp_min": 6.1,
-    "Temp_max": 24.0
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "c88ad7d0-0bd7-47ed-88aa-93124b86c4bf",
+    "Datum": "2025-09-24 15:56:00",
+    "Temperatur": 25.8,
+    "Niederschlag": 9.8,
+    "Sonnenstunden": 9.1,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "59cfc144-ea80-4bbe-bdea-0bbc1ea69157",
+    "Datum": "2025-09-23 15:56:00",
+    "Temperatur": 24.1,
+    "Niederschlag": 1.0,
+    "Sonnenstunden": 9.2,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "fcd58573-b344-438f-917d-3655fe5ba4b3",
+    "Datum": "2025-09-22 15:56:00",
+    "Temperatur": 19.3,
+    "Niederschlag": 3.3,
+    "Sonnenstunden": 11.5,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "d1211299-8b7f-4997-bba5-184bce2ca307",
+    "Datum": "2025-09-21 15:56:00",
+    "Temperatur": 28.5,
+    "Niederschlag": 2.3,
+    "Sonnenstunden": 5.2,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "6d3bad16-8c0b-488e-b44d-266552380fad",
+    "Datum": "2025-09-20 15:56:00",
+    "Temperatur": 27.0,
+    "Niederschlag": 8.2,
+    "Sonnenstunden": 8.8,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
+  },
+  {
+    "ID": "8e276a64-e43f-4f4d-942f-904027f04ece",
+    "Datum": "2025-09-19 15:56:00",
+    "Temperatur": 16.8,
+    "Niederschlag": 5.2,
+    "Sonnenstunden": 7.6,
+    "Quelle": "simuliert",
+    "Standort": "Gommern",
+    "Temp_min": null,
+    "Temp_max": null
   }
 ]
