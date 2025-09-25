@@ -29,7 +29,7 @@ class Quelle(Enum):
 
 
 
-"""
+    """
 GitHub-Konfiguration für das Laden und Speichern von Wetterdaten.
 
 Variablen:
@@ -37,7 +37,7 @@ Variablen:
     GITHUB_BRANCH: Branch, aus dem die Daten geladen werden (Standard: "main").
     GITHUB_TOKEN: Persönlicher Zugriffstoken für Authentifizierung.
     GITHUB_JSON_PATH: Pfad zur JSON-Datei mit den Wetterdaten im Repository.
-"""
+    """
 
 
 GITHUB_REPO = st.secrets["Legacy91988"]["Wetterweiser"]
