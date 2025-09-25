@@ -482,5 +482,16 @@
     "Standort": "Gommern",
     "Temp_min": 4.6,
     "Temp_max": 17.4
+  },
+  {
+    "ID": "302f32ab-b945-40f7-85a7-604f559fa84e",
+    "Datum": "2025-09-25 21:13:12",
+    "Temperatur": 24.06,
+    "Niederschlag": 0,
+    "Sonnenstunden": 10.8,
+    "Quelle": "live",
+    "Standort": "Stalis",
+    "Temp_min": null,
+    "Temp_max": null
   }
 ]
