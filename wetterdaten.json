@@ -491,6 +491,17 @@
     "Sonnenstunden": 10.8,
     "Quelle": "live",
     "Standort": "Stalis",
+    "Temp_min": 24.06,
+    "Temp_max": 24.06
+  },
+  {
+    "ID": "dba0a099-54f7-45bd-9c78-f93fac87ffd1",
+    "Datum": "2025-09-25 19:15:28",
+    "Temperatur": 8.47,
+    "Niederschlag": 0,
+    "Sonnenstunden": 0.0,
+    "Quelle": "live",
+    "Standort": "Remscheid",
     "Temp_min": null,
     "Temp_max": null
   }
