@@ -517,17 +517,6 @@
     "Temp_max": 10.92
   },
   {
-    "ID": "1391311a-9832-49ef-b725-fead7a52df01",
-    "Datum": "2025-09-25 22:10:51",
-    "Temperatur": 10.69,
-    "Niederschlag": 0,
-    "Sonnenstunden": 0.1,
-    "Quelle": "live",
-    "Standort": "hameln",
-    "Temp_min": 10.69,
-    "Temp_max": 10.69
-  },
-  {
     "ID": "37e4ff7f-f766-45c1-8047-6273588030e1",
     "Datum": "2025-09-26 11:06:23",
     "Temperatur": 24.12,
@@ -557,7 +546,7 @@
     "Sonnenstunden": 0.0,
     "Quelle": "live",
     "Standort": "Naumburg",
-    "Temp_min": null,
-    "Temp_max": null
+    "Temp_min": 14.02,
+    "Temp_max": 14.02
   }
 ]
