@@ -535,6 +535,17 @@
     "Sonnenstunden": 8.2,
     "Quelle": "live",
     "Standort": "Stalis",
+    "Temp_min": 24.12,
+    "Temp_max": 24.12
+  },
+  {
+    "ID": "1fd20969-f504-4938-a033-9992f5564f01",
+    "Datum": "2025-09-26 11:09:32",
+    "Temperatur": 13.81,
+    "Niederschlag": 0,
+    "Sonnenstunden": 0.6,
+    "Quelle": "live",
+    "Standort": "Hameln",
     "Temp_min": null,
     "Temp_max": null
   }
