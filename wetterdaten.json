@@ -546,6 +546,17 @@
     "Sonnenstunden": 0.6,
     "Quelle": "live",
     "Standort": "Hameln",
+    "Temp_min": 13.81,
+    "Temp_max": 13.81
+  },
+  {
+    "ID": "915d3710-ddfd-4859-91e7-73770a106f89",
+    "Datum": "2025-09-26 14:06:22",
+    "Temperatur": 14.02,
+    "Niederschlag": 0,
+    "Sonnenstunden": 0.0,
+    "Quelle": "live",
+    "Standort": "Naumburg",
     "Temp_min": null,
     "Temp_max": null
   }
