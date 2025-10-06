@@ -568,6 +568,17 @@
     "Sonnenstunden": 11.8,
     "Quelle": "live",
     "Standort": "Stalis",
+    "Temp_min": 21.88,
+    "Temp_max": 21.88
+  },
+  {
+    "ID": "4857b4ee-3f28-4c59-9ba6-b0ceb15376d8",
+    "Datum": "2025-10-06 16:42:48",
+    "Temperatur": 23.06,
+    "Niederschlag": 0,
+    "Sonnenstunden": 4.9,
+    "Quelle": "live",
+    "Standort": "Stalis",
     "Temp_min": null,
     "Temp_max": null
   }
