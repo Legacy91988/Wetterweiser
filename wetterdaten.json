@@ -583,13 +583,13 @@
     "Temp_max": 23.06
   },
   {
-    "ID": "15057e94-3555-4152-95ec-6239fedebd42",
-    "Datum": "2025-10-08 15:50:57",
-    "Temperatur": 18.37,
-    "Niederschlag": 0.18,
-    "Sonnenstunden": 0.5,
+    "ID": "aefb0b7b-72ec-4e60-b52b-5f931330bc1f",
+    "Datum": "2025-10-08 15:51:24",
+    "Temperatur": 18.68,
+    "Niederschlag": 0.45,
+    "Sonnenstunden": 1.5,
     "Quelle": "live",
-    "Standort": "Heraklion",
+    "Standort": "Stalis",
     "Temp_min": null,
     "Temp_max": null
   }
