@@ -579,6 +579,17 @@
     "Sonnenstunden": 4.9,
     "Quelle": "live",
     "Standort": "Stalis",
+    "Temp_min": 23.06,
+    "Temp_max": 23.06
+  },
+  {
+    "ID": "15057e94-3555-4152-95ec-6239fedebd42",
+    "Datum": "2025-10-08 15:50:57",
+    "Temperatur": 18.37,
+    "Niederschlag": 0.18,
+    "Sonnenstunden": 0.5,
+    "Quelle": "live",
+    "Standort": "Heraklion",
     "Temp_min": null,
     "Temp_max": null
   }
